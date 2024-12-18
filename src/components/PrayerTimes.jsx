@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axious'; 
+import axios from 'axios'; 
 
 const PrayerTimes = () => {
     const [prayerTimes, setPrayerTimes] = useState({});
