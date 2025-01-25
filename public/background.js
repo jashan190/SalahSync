@@ -1,3 +1,13 @@
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("Extension installed. Setting up alarms to notify . . .");
+  setupPrayerAlarms();
+});
+
+function setupPrayerAlarms() {
+  getPrayerTimes()
+}
+
+
 function getPrayerTimes() {
   return new Promise((resolve, reject) => {
     chrome.storage.local.get(['userLocation'], (result) => {
