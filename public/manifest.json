@@ -3,7 +3,7 @@
   "name": "Prayer Time Notifier",
   "version": "0.1.0",
   "description": "Get notified for prayer times.",
-  "permissions": ["notifications", "storage", "alarms"],
+  "permissions": ["notifications", "storage", "alarms", "offscreen", "geolocation"],
   "host_permissions": [
     "https://api.aladhan.com/*"
   ],
@@ -12,11 +12,6 @@
   },
   "action": {
     "default_popup": "index.html"
-  },
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
   }
 }
 

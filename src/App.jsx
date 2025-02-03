@@ -12,6 +12,7 @@ import PrayerTimes from './components/PrayerTimes';
 const App = () => {
   return (
     <div>
+      <h1> The Prayers of the day </h1>
       <PrayerTimes />
     </div>
   );
