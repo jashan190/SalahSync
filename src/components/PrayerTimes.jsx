@@ -34,7 +34,7 @@ const PrayerTimes = () => {
     if (nextPrayer) {
       const interval = setInterval(() => {
         updateCountdown(nextPrayer);
-      }, 1000);
+      }, 10);
       return () => clearInterval(interval);
       console.log("🖥 UI Updated! Current prayer times:", prayerTimes);
     }
@@ -62,10 +62,10 @@ const PrayerTimes = () => {
     try {
       const apiKey = "15a3568c0a9e493bbf5037e7c8ee6976"; // Your working API key
       const url = `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}`;
-      console.log("📍 Fetching city/state from:", url);
+      //console.log("📍 Fetching city/state from:", url);
   
       const response = await fetch(url);
-      console.log("🌎 Reverse Geocode Status:", response.status);
+      //console.log("🌎 Reverse Geocode Status:", response.status);
   
       if (!response.ok) {
         throw new Error(`Geocoding API returned status ${response.status}`);
@@ -149,31 +149,31 @@ const PrayerTimes = () => {
       }
   
       const url = `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`;
-      console.log("Fetching prayer times from:", url);
+      //console.log("Fetching prayer times from:", url);
   
       const response = await fetch(url);
-      console.log("API Response Status:", response.status);
+      //console.log("API Response Status:", response.status);
   
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        //throw new Error(`API returned status ${response.status}`);
       }
   
       const data = await response.json();
-      console.log("Full API Response:", data);
+      //console.log("Full API Response:", data);
   
       if (data?.data?.timings) {
-        console.log("Prayer times fetched:", data.data.timings);
+        //console.log("Prayer times fetched:", data.data.timings);
         const timings = filterPrayerTimes(data.data.timings);
         
-        console.log("⏳ Calling setPrayerTimes with:", timings);
+       // console.log("⏳ Calling setPrayerTimes with:", timings);
         setPrayerTimes({ ...timings }); 
         setLoading(false); // Stop loading state
 
 
         setNextPrayer(findNextPrayer(timings));
-  
+        
         chrome.storage.local.set({ prayerTimes: timings }, () => {
-          console.log("Prayer times saved to storage:", timings);
+          //console.log("Prayer times saved to storage:", timings);
         });
       } else {
         throw new Error("Invalid API response format.");
@@ -197,6 +197,29 @@ const PrayerTimes = () => {
       )
     );
   };
+
+  const findCurrentPrayer = (timings) => {
+    const now = new Date();
+    const prayerOrder = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+    let lastPrayer = null;
+
+    for (const name of prayerOrder) {
+        if (timings[name]) {
+            const prayerTime = new Date(`${now.toDateString()} ${timings[name]}`);
+
+            if (prayerTime <= now) {
+                lastPrayer = { name, time: prayerTime };  // ✅ Keep track of the most recent prayer
+            } else {
+                // ✅ If the next prayer is in the future, return the last one
+                return lastPrayer;
+            }
+        }
+    }
+
+    return lastPrayer; // Return the last prayer found (if any)
+};
+
 
   const findNextPrayer = (timings) => {
     const now = new Date();
@@ -273,12 +296,19 @@ const PrayerTimes = () => {
           <ul>
             {["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Sunset", "Isha"].map((name) => (
               prayerTimes[name] && (
-              <li key={name}>
-                {name}: {prayerTimes[name]}
-               </li>
-               )
-               ))}
+                <li key={name}>
+                  {name}: {prayerTimes[name]}
+                </li>
+              )
+            ))}
           </ul>
+  
+          {/* Display the current prayer */}
+          {findCurrentPrayer && findCurrentPrayer.time ? (
+            <p>🕋 Current Prayer: {findCurrentPrayer.name} at {findCurrentPrayer.time.toLocaleTimeString()}</p>
+          ) : (
+            <p>❌ No current prayer</p>
+          )}
   
           {/* Display the next prayer and countdown */}
           {nextPrayer && nextPrayer.time ? (
@@ -295,7 +325,6 @@ const PrayerTimes = () => {
       )}
     </div>
   );
-  
-}
+} 
 export default PrayerTimes;
 
