@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Prayer Time Notifier",
+  "version": "0.1.0",
+  "description": "Get notified for prayer times.",
+  "permissions": ["notifications", "storage", "alarms", "offscreen", "geolocation"],
+  "host_permissions": [
+    "https://api.aladhan.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "index.html"
+  }
+}
+
+  
