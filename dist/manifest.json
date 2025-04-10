@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Prayer Time Notifier",
+  "name": "SalahSync",
   "version": "0.1.0",
-  "description": "Get notified for prayer times.",
+  "description": "Sync your day with the times of Salah.",
   "permissions": ["notifications", "storage", "alarms", "offscreen", "geolocation"],
   "host_permissions": [
     "https://api.aladhan.com/*"
+    
   ],
   "background": {
     "service_worker": "background.js"

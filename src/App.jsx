@@ -1,21 +1,12 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
 import React from 'react';
 import PrayerTimes from './components/PrayerTimes';
 
-
-
-
 const App = () => {
   return (
-    <div>
-      <h1> The Prayers of the day </h1>
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <PrayerTimes />
     </div>
   );
 };
 
-export default App
+export default App;

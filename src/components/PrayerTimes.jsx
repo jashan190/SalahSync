@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PrayerCard from "./PrayerCard";
 
 const PrayerTimes = () => {
   const [prayerTimes, setPrayerTimes] = useState({});
@@ -8,7 +9,8 @@ const PrayerTimes = () => {
   const [location, setLocation] = useState(null);
   const [locationAccessGranted, setLocationAccessGranted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const apiKey = "15a3568c0a9e493bbf5037e7c8ee6976";
+  const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
+
 
   // Fetch stored location and prayer times when component loads
   useEffect(() => {
@@ -60,7 +62,7 @@ const PrayerTimes = () => {
   
   const reverseGeocode = async (latitude, longitude) => {
     try {
-      const apiKey = "15a3568c0a9e493bbf5037e7c8ee6976"; // Your working API key
+      
       const url = `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}`;
       //console.log("📍 Fetching city/state from:", url);
   
@@ -270,58 +272,19 @@ const PrayerTimes = () => {
 
   return (
     <div>
-      <h2>Prayer Times</h2>
-  
-      {/* Display error messages */}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-  
-      {/* Button to allow location access */}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       {!locationAccessGranted && (
         <button onClick={requestGeolocation}>Allow Location Access</button>
       )}
-  
-      {/* Show user's location (City/State if available) */}
-      {locationAccessGranted && location && (
-        <p>
-          📍 Location: {location.cityState ? location.cityState : `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
-        </p>
-      )}
-  
-      {/* Show loading message when fetching prayer times */}
       {loading && <p>⏳ Fetching prayer times...</p>}
-  
-      {/* Display prayer times if available */}
-      {prayerTimes && Object.keys(prayerTimes).length > 0 && !loading ? (
-        <>
-          <ul>
-            {["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Sunset", "Isha"].map((name) => (
-              prayerTimes[name] && (
-                <li key={name}>
-                  {name}: {prayerTimes[name]}
-                </li>
-              )
-            ))}
-          </ul>
-  
-          {/* Display the current prayer */}
-          {findCurrentPrayer && findCurrentPrayer.time ? (
-            <p>🕋 Current Prayer: {findCurrentPrayer.name} at {findCurrentPrayer.time.toLocaleTimeString()}</p>
-          ) : (
-            <p>❌ No current prayer</p>
-          )}
-  
-          {/* Display the next prayer and countdown */}
-          {nextPrayer && nextPrayer.time ? (
-            <>
-              <p>🕌 Next prayer: {nextPrayer.name} at {nextPrayer.time.toLocaleTimeString()}</p>
-              <p>⏳ Time remaining: {countdown || "Calculating countdown..."}</p>
-            </>
-          ) : (
-            <p>❌ Next prayer time not found</p>
-          )}
-        </>
-      ) : (
-        !loading && <p>❌ No prayer times available.</p>
+      {!loading && prayerTimes && (
+        <PrayerCard
+          prayerTimes={prayerTimes}
+          currentPrayer={findCurrentPrayer(prayerTimes)}
+          nextPrayer={nextPrayer}
+          location={location}
+          countdown={countdown}
+        />
       )}
     </div>
   );
