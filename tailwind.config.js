@@ -6,9 +6,11 @@ module.exports = {
     ],
     theme: {
       extend: {
-        biryani: ['Biryani','sans-serif']
+        fontFamily: {
+          biryani: ['Biryani','sans-serif']
       },
-    },
-    plugins: [],
-  }
+    }
+  },
+  plugins: [],
+}
   

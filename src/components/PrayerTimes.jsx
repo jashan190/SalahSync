@@ -144,47 +144,60 @@ const PrayerTimes = () => {
 
   
 
-  const fetchPrayerTimes = async (latitude, longitude) => {
-    try {
-      if (!latitude || !longitude) {
-        throw new Error("Missing coordinates for prayer times.");
-      }
-  
-      const url = `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`;
-      //console.log("Fetching prayer times from:", url);
-  
-      const response = await fetch(url);
-      //console.log("API Response Status:", response.status);
-  
-      if (!response.ok) {
-        //throw new Error(`API returned status ${response.status}`);
-      }
-  
-      const data = await response.json();
-      //console.log("Full API Response:", data);
-  
-      if (data?.data?.timings) {
-        //console.log("Prayer times fetched:", data.data.timings);
-        const timings = filterPrayerTimes(data.data.timings);
-        
-       // console.log("⏳ Calling setPrayerTimes with:", timings);
-        setPrayerTimes({ ...timings }); 
-        setLoading(false); // Stop loading state
-
-
-        setNextPrayer(findNextPrayer(timings));
-        
-        chrome.storage.local.set({ prayerTimes: timings }, () => {
-          //console.log("Prayer times saved to storage:", timings);
-        });
-      } else {
-        throw new Error("Invalid API response format.");
-      }
-    } catch (err) {
-      console.error("Failed to fetch prayer times:", err.message);
-      setError("Failed to fetch prayer times. Please try again.");
+const fetchPrayerTimes = async (latitude, longitude) => {
+  try {
+    if (!latitude || !longitude) {
+      throw new Error("Missing coordinates for prayer times.");
     }
-  };
+
+    const url = `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data?.data?.timings) {
+      const timings = filterPrayerTimes(data.data.timings);
+
+      setPrayerTimes({ ...timings });
+      setLoading(false);
+      setNextPrayer(findNextPrayer(timings));
+
+      chrome.storage.local.set({ prayerTimes: timings }, () => {
+        console.log("Prayer times saved to storage:", timings);
+      });
+
+      // 🔥 HERE: Now timings exists so this works:
+      Object.entries(timings).forEach(([prayerName, time]) => {
+        const [hours, minutes] = time.split(/[: ]/);
+        const isPM = time.includes('PM');
+        const prayerDateTime = new Date();
+        prayerDateTime.setHours(
+          parseInt(hours) + (isPM && hours !== '12' ? 12 : 0),
+          parseInt(minutes),
+          0
+        );
+
+        chrome.runtime.sendMessage({
+          type: "set-prayer-alarms",
+          prayerName,
+          timeString: prayerDateTime.toString(),
+        });
+      });
+
+    } else {
+      throw new Error("Invalid API response format.");
+    }
+  } catch (err) {
+    console.error("Failed to fetch prayer times:", err.message);
+    setError("Failed to fetch prayer times. Please try again.");
+  }
+};
+
   
 
   
