@@ -139,7 +139,19 @@ const PrayerTimes = () => {
     }
 };
 
-  
+/*const hanafiAsrTime = async (latitude, longitude) => {
+  try {
+    if (!latitude || !longitude) {
+      throw new Error("Missing coordinates for prayer times.");
+    }
+
+
+  }
+  catch (err) {
+    console.error("Failed to fetch Asr time:", err.message);
+    setError("Failed to fetch prayer times. Please try again.");
+  }
+};*/
   
 
   

@@ -1,53 +1,54 @@
-import React from "react";
+import { Bell } from "lucide-react";
 
 const PrayerCard = ({ prayerTimes, currentPrayer, nextPrayer, location, countdown }) => {
   const safeCurrent = currentPrayer || { name: "Unknown", time: new Date() };
 
   return (
-    <div className="relative w-[320px] h-[600px] bg-gradient-to-r from-[#2CA95C] to-[#1F7EC2] rounded-2xl font-[Biryani] text-white shadow-lg">
+    <div className="relative w-[300px] h-[660px] bg-gradient-to-r from-[#6C3483] to-[#1F618D] rounded-[16px] text-white font-rubik shadow-lg p-4">
 
-      {/* Current Prayer */}
-      <h1 className="absolute top-[30px] left-1/2 -translate-x-1/2 text-[40px] text-center">
-        {safeCurrent.name}
-      </h1>
+      {/* Title */}
+      <h1 className="text-center text-[32px] font-extrabold mt-2">{safeCurrent.name}</h1>
 
-      {/* Countdown */}
-      <p className="absolute top-[90px] left-1/2 -translate-x-1/2 text-[20px] text-center">
-        {countdown || "Calculating..."}
-      </p>
+      {/* Countdown inside progress ring */}
+      <div className="relative w-[160px] h-[160px] mx-auto mt-2">
+        <div className="absolute inset-0 rounded-full bg-[#95A5A6]"></div>
+        <div className="absolute inset-[3px] rounded-full bg-[#052525] flex items-center justify-center text-center text-[16px] text-black font-medium">
+          {countdown || "Calculating..."}
+        </div>
+      </div>
 
-      {/* Date */}
-      <p className="absolute top-[120px] left-1/2 -translate-x-1/2 text-[14px] text-center">
-        {new Date().toLocaleDateString("en-US", {
+      {/* White prayer time box */}
+      <div className="mt-4 bg-white bg-opacity-90 rounded-[16px] text-black px-4 py-4 shadow-md space-y-2">
+        {["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => {
+          const prayerTime = prayerTimes?.[name]
+            ? new Date(`1970-01-01T${prayerTimes[name]}`).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+              })
+            : "--:--";
+          const isNow = name === safeCurrent.name;
+
+          return (
+            <div key={name} className="flex items-center justify-between border-b border-gray-300 last:border-none pb-1">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-gray-500" />
+                <span className={`text-[16px] ${isNow ? "font-bold" : "font-normal"}`}>{name}</span>
+              </div>
+              <span className={`text-[16px] ${isNow ? "font-bold" : ""}`}>{prayerTime}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Date & Location */}
+      <div className="mt-4 text-center text-[14px] leading-tight">
+        <p>{new Date().toLocaleDateString("en-US", {
           weekday: "long",
           month: "long",
           day: "numeric",
           year: "numeric",
-        })}
-      </p>
-
-      {/* Location */}
-      <p className="absolute top-[145px] left-1/2 -translate-x-1/2 text-[14px] text-center truncate">
-        {location?.cityState || "Unknown Location"}
-      </p>
-
-      {/* White Layered Box */}
-      <div className="absolute top-[180px] left-[10px] w-[300px] h-[380px] bg-white rounded-2xl text-black px-4 py-4 shadow-lg">
-        {["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => {
-          const prayerTime = prayerTimes?.[name]
-            ? new Date(`1970-01-01T${prayerTimes[name]}`).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-              })
-            : "--:--";
-
-          return (
-            <div key={name} className="flex justify-between items-center border-b border-gray-300 py-2 last:border-none">
-              <span className="text-[18px]">{name}</span>
-              <span className="text-[18px] font-semibold">{prayerTime}</span>
-            </div>
-          );
-        })}
+        })}</p>
+        <p>{location?.cityState || "Unknown Location"}</p>
       </div>
     </div>
   );
