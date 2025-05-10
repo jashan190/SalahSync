@@ -15,7 +15,7 @@ function ensureOffscreen() {
     }
   });
 }
-
+chrome.runtime.
 // Handle messages from the popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "get-geolocation") {

@@ -15,7 +15,9 @@
     "16":"logo.png"
   },
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_popup_width": 250,
+    "default_popup_height": 500
   }
 }
 

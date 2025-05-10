@@ -3,19 +3,16 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  publicDir: 'public', // Ensure assets from 'public' are directly copied
+  base: './', 
   build: {
+    outDir: 'dist', 
     rollupOptions: {
-      output: {
-        assetFileNames: (assetInfo) => {
-          // Force icons to stay in the root directory
-          if (/icon\d+\.png$/.test(assetInfo.name)) {
-            return '[name][extname]';
-          }
-          return 'assets/[name][extname]'; // Default for other assets
-        },
-      },
-    },
-  },
+        output: {
+          entryFileNames: 'assets/index.js',
+          chunkFileNames: 'assets/index.js',
+          assetFileNames: 'assets/index.css',
+        }
+      }
+  }
+  
 });
-
