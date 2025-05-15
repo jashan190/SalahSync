@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 .qodo
 .env
-/dist
+/dist/
