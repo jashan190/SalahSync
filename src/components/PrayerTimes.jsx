@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Bell, Settings } from "lucide-react";
 
-
 const PrayerTimes = () => {
   const [prayerTimes, setPrayerTimes] = useState({});
   const [nextPrayer, setNextPrayer] = useState(null);
@@ -296,86 +295,39 @@ const fetchPrayerTimes = async (latitude, longitude) => {
   
  
   return (
-    <div className="relative w-[250px] h-[500px] rounded-2xl overflow-hidden text-white font-[Rubik] py-8 px-6"
-      style={{
-        background: "linear-gradient(90deg, #6C3483 0%, #1F618D 100%)",
-      }}
-    >
-      {/* Top Buttons */}
-      <div className="flex justify-between items-center mb-6">
-        {!locationAccessGranted ? (
+  <div className="
+    h-full
+    w-full
+    overflow-hidden
+    rounded-lg
+    border
+    shadow-lg 
+    "
+     style={{
+       background: "linear-gradient(90deg, #6C3483 0%, #1F618D 100%)",
+     }}>
+       {/*allow loco here*/}
+        <div className="p-4">
           <button
-            className="h-10 px-4 border border-white rounded-lg shadow-md text-sm"
             onClick={requestGeolocation}
-          >
-            Allow Location Access
+            disabled={loading}
+            className={`
+              inline-flex items-center justify-center
+              px-6 py-4
+              border-2 border-white 
+              rounded-full
+              text-base text-white
+              font-medium
+            ${loading ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10"}
+            `}
+            >
+            {loading ? "Fetching..." : "Allow Location Access"}
           </button>
-        ) : (
-          <button className="h-10 px-4 border border-white rounded-lg shadow-md text-sm flex items-center gap-2">
-            <Settings className="w-5 h-5 text-white" />
-            <span>Settings</span>
-          </button>
-        )}
-      </div>
-  
-      {/* Current Salah Name */}
-      <div className="flex justify-center items-center mb-5">
-        <h1 className="text-4xl font-bold tracking-tight">{nextPrayer?.name || "Loading..."}</h1>
-      </div>
-  
-      {/* Progress Circle */}
-      <div className="relative w-40 h-40 mx-auto mt-4 mb-8">
-        <div className="absolute inset-0 bg-gray-400 rounded-full"></div>
-        <div className="absolute inset-1 bg-white rounded-full flex items-center justify-center">
-          <span className="text-lg text-center text-black">
-            {countdown || "..."}
-          </span>
         </div>
       </div>
-  
-      {/* Prayer Times */}
-      <div className="flex flex-col gap-8">
-        {["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"].map((name) => {
-          const prayerTime = prayerTimes?.[name]
-            ? new Date(`1970-01-01T${prayerTimes[name]}`).toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-              })
-            : "--:--";
-  
-          const isNow = name === nextPrayer?.name;
-  
-          return (
-            <div key={name} className="flex justify-between items-center pb-4 border-b border-white">
-              <div className="flex items-center gap-4">
-                <Bell className="w-6 h-6 text-white" />
-                <span className={`text-xl ${isNow ? "font-bold" : "font-normal"}`}>
-                  {name}
-                </span>
-              </div>
-              <span className={`text-xl ${isNow ? "font-bold" : "font-normal"}`}>
-                {prayerTime}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-  
-      {/* Date and Location */}
-      <div className="mt-8 text-center flex flex-col items-center gap-2">
-        <p className="text-lg tracking-tight">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
-        <p className="text-lg tracking-tight">{location?.cityState || "Unknown Location"}</p>
-      </div>
-    </div>
-  );
-  
+
+
+    ); 
 };
 
 export default PrayerTimes;

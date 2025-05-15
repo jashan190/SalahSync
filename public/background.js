@@ -1,43 +1,23 @@
-// Ensure the offscreen document is created
-function ensureOffscreen() {
-  chrome.offscreen.hasDocument((hasDocument) => {
-    console.log("Offscreen document exists:", hasDocument);
-    if (!hasDocument) {
-      chrome.offscreen.createDocument({
-        url: "offscreen.html",
-        reasons: ["GEOLOCATION"],
-        justification: "Fetch user location for prayer times."
-      }).then(() => {
-        console.log("Offscreen document created successfully.");
-      }).catch((err) => {
-        console.error("Failed to create offscreen document:", err.message);
-      });
+
+
+function handleSettingAlarms() {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg === "set-prayer-alarms") {
+      console.log(" Alarm triggered for prayer time:", alarm);
+      // Handle the alarm (e.g., show a notification)
+
+      const when =  new Date (msg.timeString).getTime();
+      chrome.alarms.create(msg.prayerName, { when });
     }
   });
-}
-chrome.runtime.
-// Handle messages from the popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "get-geolocation") {
-    ensureOffscreen();
+};
 
-    // Send a message to the offscreen document
-    chrome.runtime.sendMessage(
-      { target: "offscreen", type: "get-geolocation" },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error("Error sending message to offscreen:", chrome.runtime.lastError.message);
-          sendResponse({ error: chrome.runtime.lastError.message });
-        } else if (response?.success) {
-          console.log("Geolocation received:", response.location);
-          sendResponse(response);
-        } else {
-          console.error("Invalid response from offscreen:", response);
-          sendResponse({ error: "No valid response from offscreen." });
-        }
-      }
-    );
-
-    return true; // Keep the message channel open
-  }
-});
+  chrome.alarm.onAlarm.addListener((alarm) => {
+    chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon.png",
+        title: "Prayer Time Alert",
+        message: `It's time for ${alarm.data.prayerName}!`,
+        priority: 1
+      });
+  });

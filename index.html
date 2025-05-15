@@ -1,22 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SalahSync</title>
-    <style>
-      html, body, #root {
-        width: 250px;
-        height: 500px;
-        margin: 0;
-        padding: 0;
-        background: linear-gradient(90deg, #6C3483 0%, #1F618D 100%);
-        overflow: hidden;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<html 
+  lang="en" 
+  style = "
+    border-radius: 12px; 
+    overflow: hidden;
+    background:transparent; 
+    margin: 0;
+    padding: 0;"
+  >
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="script-src 'self'; object-src 'self'"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/src/index.css" />
+  <title>SalahSync</title>
+  <style>
+    /* Restore the white window behind your content */
+    body {
+      margin: 0;
+      padding: 0;
+      width: 300px;
+      height: 600px;
+      overflow: hidden;
+      background:transparent
+    }
+
+    
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
 </html>

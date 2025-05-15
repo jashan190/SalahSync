@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "SalahSync",
-  "version": "0.1.0",
+  "version": "1.0",
   "description": "Sync your day with the times of Salah.",
-  "permissions": ["notifications", "storage", "alarms", "offscreen", "geolocation"],
+  "permissions": ["notifications", "storage", "alarms", "geolocation"],
   "host_permissions": [
     "https://api.aladhan.com/*"
     
@@ -16,8 +16,8 @@
   },
   "action": {
     "default_popup": "index.html",
-    "default_popup_width": 250,
-    "default_popup_height": 500
+    "default_popup_width": 300,
+    "default_popup_height": 600
   }
 }
 

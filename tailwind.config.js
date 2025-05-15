@@ -1,10 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{js,jsx,ts,tsx,html}"], 
+  content: ["./src/components/**/*.{js,jsx,ts,tsx,html}"], 
   theme: {
     extend: {
       fontFamily: {
-        rubik: ["Rubik", "sans-serif"],
+        rubik: ["Biryani", "sans-serif"],
       },
       colors: {
         fuchsia900: "#6C3483",
