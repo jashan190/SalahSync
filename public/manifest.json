@@ -18,6 +18,9 @@
     "default_popup": "index.html",
     "default_popup_width": 300,
     "default_popup_height": 600
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }
 
