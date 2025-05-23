@@ -1,334 +1,250 @@
-import React, { useState, useEffect } from "react";
-import { Bell, Settings } from "lucide-react";
+// src/components/PrayerTimes.jsx
+import React, { useState, useEffect, useCallback } from "react";
+import "./PrayerTimes.css";
+import { Bell,BellRing } from "lucide-react";
+import { CircularProgressbar, buildStyles} from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
-const PrayerTimes = () => {
-  const [prayerTimes, setPrayerTimes] = useState({});
-  const [nextPrayer, setNextPrayer] = useState(null);
-  const [countdown, setCountdown] = useState("");
-  const [error, setError] = useState("");
-  const [location, setLocation] = useState(null);
+
+
+
+export default function PrayerTimes() {
+  // ─── State ──────────────────────────────────────────────────────────────
+  const [prayerTimes, setPrayerTimes]     = useState({});
+  const [currentPrayer, setCurrentPrayer] = useState(null);
+  const [nextPrayer, setNextPrayer]       = useState(null);
+  const [countdown, setCountdown]         = useState("");
+  const [progress, setProgress]           = useState(0);
+  const [location, setLocation]           = useState({});
   const [locationAccessGranted, setLocationAccessGranted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState({});
   const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
 
+  // ─── Helpers ────────────────────────────────────────────────────────────
+  const filterPrayerTimes = timings =>
+    Object.fromEntries(
+      Object.entries(timings).filter(
+        ([k]) => !["Midnight","Imsak","Firstthird","Lastthird","Sunset"].includes(k)
+      )
+    );
 
-  // Fetch stored location and prayer times when component loads
-  useEffect(() => {
-    function handleStorageChange(changes, areaName) {
-      if (areaName === "local" && changes.prayerTimes) {
-        console.log("Storage changed! Updating prayer times.");
-        setPrayerTimes(changes.prayerTimes.newValue);
-        setNextPrayer(findNextPrayer(changes.prayerTimes.newValue));
-      }
+  const findCurrentPrayer = timings => {
+    const now = new Date();
+    const order = ["Fajr","Dhuhr","Asr","Maghrib","Isha"];
+    let last = null;
+    for (const name of order) {
+      if (!timings[name]) continue;
+      const dt = new Date(`${now.toDateString()} ${timings[name]}`);
+      if (dt <= now) last = { name, time: dt };
+      else break;
     }
-  
-    chrome.storage.onChanged.addListener(handleStorageChange);
-  
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, []);
-  
-
-  
-
-  useEffect(() => {
-    if (nextPrayer) {
-      const interval = setInterval(() => {
-        updateCountdown(nextPrayer);
-      }, 10);
-      return () => clearInterval(interval);
-      console.log("🖥 UI Updated! Current prayer times:", prayerTimes);
-    }
-  }, [nextPrayer]);
-
-  const updatePrayerTimes = (prayerData) => {
-    console.log("⚡ Updating UI with new prayer times:", prayerData);
-    
-    // Ensure prayerData is valid before updating state
-    if (!prayerData || typeof prayerData !== "object") {
-      console.error("❌ Invalid prayerData:", prayerData);
-      return;
-    }
-  
-    setPrayerTimes((prev) => ({ ...prev, ...prayerData })); // Force React to detect a state change
-    setLoading(false); // Stop showing "Fetching prayer times..."
- // Ensure React sees a new object
-    setLoading(false); // Stop showing "Fetching prayer times..."
-  
-    setNextPrayer(findNextPrayer(prayerData));
+    return last;
   };
-  
-  
-  const reverseGeocode = async (latitude, longitude) => {
+
+  const findNextPrayer = timings => {
+    const now = new Date();
+    const order = ["Fajr","Dhuhr","Asr","Maghrib","Isha"];
+    for (const name of order) {
+      if (!timings[name]) continue;
+      const dt = new Date(`${now.toDateString()} ${timings[name]}`);
+      if (dt > now) return { name, time: dt };
+    }
+    // fallback to tomorrow’s Fajr at 05:55
+    const nxt = new Date();
+    nxt.setDate(nxt.getDate() + 1);
+    nxt.setHours(5,55,0,0);
+    return { name: "Fajr", time: nxt };
+  };
+
+  const updateCountdown = next => {
+    if (!next?.time) return setCountdown("No upcoming prayer.");
+    const diff = next.time - new Date();
+    if (diff <= 0) return setCountdown("It's time to pray!");
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000)/60000);
+    const s = Math.floor((diff % 60000)/1000);
+    setCountdown(`${h}h ${m}m ${s}s`);
+  };
+
+  const reverseGeocode = async (lat, lon) => {
     try {
-      
-      const url = `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}`;
-      //console.log("📍 Fetching city/state from:", url);
-  
-      const response = await fetch(url);
-      //console.log("🌎 Reverse Geocode Status:", response.status);
-  
-      if (!response.ok) {
-        throw new Error(`Geocoding API returned status ${response.status}`);
-      }
-  
-      const data = await response.json();
-      console.log("📜 Geolocation API Response:", data);
-  
-      if (data?.results?.length > 0) {
-        const components = data.results[0].components;
-        const city = components.city || components.town || components.village;
-        const state = components.state;
-        if (city && state) {
-          console.log(`✅ Found location: ${city}, ${state}`);
-          return `${city}, ${state}`;
-        }
-      }
-      throw new Error("No valid location data found.");
-    } catch (err) {
-      console.error("❌ Failed to reverse geocode:", err.message);
+      const url = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lon}&key=${apiKey}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      const js = await res.json();
+      const comp = js.results?.[0]?.components;
+      if (!comp) throw new Error("no data");
+      const city  = comp.city || comp.town || comp.village;
+      const state = comp.state;
+      return city && state ? `${city}, ${state}` : null;
+    } catch {
       return null;
     }
   };
 
-  const requestGeolocation = () => {
-    if ("geolocation" in navigator) {
-      setLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log("📍 User's location:", latitude, longitude);
-
-          const userLocation = { latitude, longitude };
-
-          // Reverse geocode to get city and state
-          const humanReadableLocation = await reverseGeocode(latitude, longitude);
-          if (humanReadableLocation) {
-            userLocation.cityState = humanReadableLocation;
-            console.log("✅ City/State found:", humanReadableLocation);
-          } else {
-            console.warn("⚠️ Reverse geocoding failed, using coordinates only.");
-          }
-
-          // Store in Chrome Storage
-          chrome.storage.local.set({ userLocation }, () => {
-            console.log("💾 Location saved:", userLocation);
-          });
-
-          // ✅ Update state correctly
-          setLocation((prev) => ({
-            ...prev,
-            latitude,
-            longitude,
-            cityState: humanReadableLocation || "Unknown Location",
-          }));
-
-          setLocationAccessGranted(true);
-          fetchPrayerTimes(latitude, longitude);
-        },
-        (err) => {
-          console.error("❌ Error getting location:", err.message);
-          setError("Failed to get your location. Please enable location services.");
-          setLoading(false);
-        }
+  // ─── Data fetching ──────────────────────────────────────────────────────
+  const fetchPrayerTimes = useCallback(async (lat, lon) => {
+    try {
+      const res = await fetch(
+        `https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=2`
       );
-    } else {
-      console.error("❌ Geolocation is not supported by this browser.");
-      setError("Geolocation is not supported by your browser.");
-    }
-};
+      if (!res.ok) throw new Error(res.status);
+      const { data } = await res.json();
+      const times = filterPrayerTimes(data.timings);
+      setPrayerTimes(times);
 
-/*const hanafiAsrTime = async (latitude, longitude) => {
-  try {
-    if (!latitude || !longitude) {
-      throw new Error("Missing coordinates for prayer times.");
-    }
+      const curr = findCurrentPrayer(times);
+      const nxt  = findNextPrayer(times);
+      setCurrentPrayer(curr);
+      setNextPrayer(nxt);
+      updateCountdown(nxt);
 
-
-  }
-  catch (err) {
-    console.error("Failed to fetch Asr time:", err.message);
-    setError("Failed to fetch prayer times. Please try again.");
-  }
-};*/
-  
-
-  
-
-const fetchPrayerTimes = async (latitude, longitude) => {
-  try {
-    if (!latitude || !longitude) {
-      throw new Error("Missing coordinates for prayer times.");
-    }
-
-    const url = `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=2`;
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`API returned status ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data?.data?.timings) {
-      const timings = filterPrayerTimes(data.data.timings);
-
-      setPrayerTimes({ ...timings });
+      // schedule countdown+progress updates
+    } catch (e) {
+      console.error("fetchPrayerTimes:", e);
+    } finally {
       setLoading(false);
-      setNextPrayer(findNextPrayer(timings));
-
-      chrome.storage.local.set({ prayerTimes: timings }, () => {
-        console.log("Prayer times saved to storage:", timings);
-      });
-
-     
-      Object.entries(timings).forEach(([prayerName, time]) => {
-        const [hours, minutes] = time.split(/[: ]/);
-        const isPM = time.includes('PM');
-        const prayerDateTime = new Date();
-        prayerDateTime.setHours(
-          parseInt(hours) + (isPM && hours !== '12' ? 12 : 0),
-          parseInt(minutes),
-          0
-        );
-
-        chrome.runtime.sendMessage({
-          type: "set-prayer-alarms",
-          prayerName,
-          timeString: prayerDateTime.toString(),
-        });
-      });
-
-    } else {
-      throw new Error("Invalid API response format.");
     }
-  } catch (err) {
-    console.error("Failed to fetch prayer times:", err.message);
-    setError("Failed to fetch prayer times. Please try again.");
-  }
-};
+  }, []);
 
-  
-
-  
-  
-  
-  
-
-  const filterPrayerTimes = (timings) => {
-    return Object.fromEntries(
-      Object.entries(timings).filter(
-        ([key]) => !["Midnight", "Imsak", "Firstthird", "Lastthird"].includes(key)
-      )
+  // ─── Geolocation & handlers ─────────────────────────────────────────────
+  const requestGeolocation = () => {
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const locStr = await reverseGeocode(lat, lon);
+        setLocation({ lat, lon, cityState: locStr });
+        setLocationAccessGranted(true);
+        fetchPrayerTimes(lat, lon);
+      },
+      () => {
+        alert("Location denied");
+        setLoading(false);
+      },
+      { enableHighAccuracy: true }
     );
   };
 
-  const findCurrentPrayer = (timings) => {
-    const now = new Date();
-    const prayerOrder = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  // Use your existing hanafiAsrTime function here:
+  const hanafiAsrTime = () => {
+    // e.g. re-fetch with hanafi-specific parameters
+    const { lat, lon } = location;
+    if (lat && lon) fetchPrayerTimes(lat, lon);
+  };
 
-    let lastPrayer = null;
+  // ─── Effects ────────────────────────────────────────────────────────────
+  // Chrome storage listener for external changes
+  useEffect(() => {
+    const listener = (changes, area) => {
+      if (area==="local" && changes.prayerTimes) {
+        const newTimes = changes.prayerTimes.newValue;
+        setPrayerTimes(newTimes);
+        const curr = findCurrentPrayer(newTimes);
+        const nxt  = findNextPrayer(newTimes);
+        setCurrentPrayer(curr);
+        setNextPrayer(nxt);
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
 
-    for (const name of prayerOrder) {
-        if (timings[name]) {
-            const prayerTime = new Date(`${now.toDateString()} ${timings[name]}`);
+  // countdown + progress ticker
+  useEffect(() => {
+    if (!nextPrayer || !currentPrayer) return;
+    const id = setInterval(() => {
+      updateCountdown(nextPrayer);
+      const total = nextPrayer.time - currentPrayer.time;
+      const elapsed = Date.now() - currentPrayer.time;
+      setProgress(Math.max(0, Math.min(elapsed/total,1)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [nextPrayer, currentPrayer]);
 
-            if (prayerTime <= now) {
-                lastPrayer = { name, time: prayerTime };  // ✅ Keep track of the most recent prayer
-            } else {
-                // ✅ If the next prayer is in the future, return the last one
-                return lastPrayer;
-            }
-        }
-    }
-
-    return lastPrayer; // Return the last prayer found (if any)
+  const toggleNotification = name => {
+  setNotifications(prev => ({ ...prev, [name]: !prev[name] }));
 };
 
+  // ─── Render ─────────────────────────────────────────────────────────────
+  const fmt = dt =>
+    dt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
-  const findNextPrayer = (timings) => {
-    const now = new Date();
-    const prayerOrder = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-  
-    for (const name of prayerOrder) {
-      if (timings[name]) {
-        const prayerTime = new Date(`${now.toDateString()} ${timings[name]}`);
-        if (prayerTime > now) {
-          console.log(`⏳ Next prayer found: ${name} at ${prayerTime.toLocaleTimeString()}`);
-          return { name, time: prayerTime };
-        }
-      }
-    }
-  
-    // Default to Fajr of the next day
-    const nextFajrTime = new Date();
-    nextFajrTime.setDate(now.getDate() + 1);
-    nextFajrTime.setHours(5, 55, 0);
-    return { name: "Fajr", time: nextFajrTime };
-  };
-  
-  
-  
-  
-
-  const updateCountdown = (nextPrayer) => {
-    if (!nextPrayer || !nextPrayer.time) {
-      setCountdown("No upcoming prayer.");
-      return;
-    }
-  
-    const now = new Date();
-    const timeDiff = nextPrayer.time - now;
-  
-    if (timeDiff <= 0) {
-      setCountdown("It's time to pray!");
-    } else {
-      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-      const minutes = Math.floor((timeDiff / (1000 * 60)) % 60);
-      const seconds = Math.floor((timeDiff / 1000) % 60);
-      
-      setCountdown(`${hours}h ${minutes}m ${seconds}s`);
-    }
-  };
-  
- 
   return (
-  <div className="
-    h-full
-    w-full
-    overflow-hidden
-    rounded-lg
-    border
-    shadow-lg 
-    "
-     style={{
-       background: "linear-gradient(90deg, #6C3483 0%, #1F618D 100%)",
-     }}>
-       {/*allow loco here*/}
-        <div className="p-4">
-          <button
-            onClick={requestGeolocation}
-            disabled={loading}
-            className={`
-              inline-flex items-center justify-center
-              px-6 py-4
-              border-2 border-white 
-              rounded-full
-              text-base text-white
-              font-medium
-            ${loading ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10"}
-            `}
-            >
-            {loading ? "Fetching..." : "Allow Location Access"}
-          </button>
+    <div className="PrayerTimes-Container">
+      {/* Top Bar */}
+      <div className="frame">
+        <div className="component-3">
+        
+          <div className="allow-location-access">
+            <button onClick={requestGeolocation} disabled={loading}>
+              {loading ? "Fetching..." : "Allow Location Access"}
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Current Prayer & Progress */}
+      <div className="current-salah-time-parent">
+        <div className="current-salah-time">
+          <b className="dhuhr">{currentPrayer?.name}</b>
+        </div>
+        <div className="group-wrapper">
+          <div className="group-container">
+            <div className="progress-bar-parent" style={{ width: 100, height: 100 }}>
+              <CircularProgressbar
+                value={progress * 100}
+                text={countdown}
+                strokeWidth={8}
+                styles={buildStyles({
+                  pathColor: "#fff",
+                  trailColor: "rgba(255,255,255,0.3)",
+                  textColor: "#fff",
+                  textSize: "10px",
+                })}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
-    ); 
-};
+      {/* Prayer List */}
+      <div className="frame1">
+        {Object.entries(prayerTimes).map(([name, time]) => {
+          const isCurrent = name === currentPrayer?.name;
+          const suffix    = name === "Dhuhr" ? "2" : name === "Sunrise" ? "1" : "";
+          const isOn      = !!notifications[name];
+          return (
+            <div key={name} className={`baby ${isCurrent ? "font-bold" : ""}`}>
+              <div className="fajr">{name}</div>
+              <div className={`am${suffix}`}>{time}</div>
+              <div className="track-shape" />
+              <div className="notif-toggle" onClick={() => toggleNotification(name)}>
+                {isOn ? <BellRing className="icon" /> : <Bell className="icon" />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-export default PrayerTimes;
-
+      {/* Footer */}
+      <div className="date-location">
+        <div className="wednesday-may-7">
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            month:   "long",
+            day:     "numeric",
+            year:    "numeric",
+          })}
+        </div>
+        <div className="santa-clara-ca">
+          {location.cityState ||
+            (locationAccessGranted
+              ? `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`
+              : "Unknown location")}
+        </div>
+      </div>
+    </div>
+  );
+}

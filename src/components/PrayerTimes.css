@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@layer components{
+    
+
+    /* Only the Allow-Location pill */
+    
+
+    .allow-location-access {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* optional: keep this exactly 111×20 so the button is centered */
+  width: 111px;
+  height: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* make the button into the pill */
+.allow-location-access button {
+  /* force the pill dimensions */
+  min-width: 111px;
+  height: 20px;
+
+  /* white 1px outline, rounded 8px corners */
+  border: 1px solid #fff;
+  border-radius: 8px;
+
+  /* transparent background so your gradient shows through */
+  background: transparent;
+
+  /* match Figma typography */
+  font-size: 10px;
+  font-family: Rubik, sans-serif;
+  color: #fff;
+  letter-spacing: -0.04em;
+
+  /* tight padding, so text sits nicely centered */
+  padding: 0 8px;
+
+  cursor: pointer;
+}
+
+    .frame {
+        align-self: stretch;
+        position: relative;
+        height: 20px;
+    }
+    .dhuhr {
+        position: relative;
+        top: 0%;
+        left: 4.02%;
+        letter-spacing: -0.04em;
+    }
+    .current-salah-time {
+        width: 99.6px;
+        position: relative;
+        
+        height: 34px;
+    }
+
+    .progress-bar-parent {
+        position: absolute;
+        top: 0px;
+        left: calc(50% - 50.75px);
+        width: 101.5px;
+        height: 102px;
+    }
+    .group-container {
+        width: 101.5px;
+        position: absolute;
+        margin: 0 !important;
+        top: -2px;
+        left: calc(50% - 50.5px);
+        height: 102px;
+        z-index: 0;
+    }
+    .group-wrapper {
+        width: 101px;
+        height: 102px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 0px 0px 8.4px 50px;
+        box-sizing: border-box;
+        position: relative;
+        font-size: 10px;
+    }
+    .fajr {
+        position: absolute;
+        top: 0%;
+        left: 12%;
+        letter-spacing: -0.04em;
+    }
+    .am {
+        position: absolute;
+        top: 0%;
+        left: 71.32%;
+        letter-spacing: -0.04em;
+        text-align: right;
+    }
+    .track-shape {
+        position: absolute;
+        width: 100%;
+        top: 31px;
+        right: 0%;
+        left: 0%;
+        border-radius: 8px;
+        background-color: #fff;
+        height: 2px;
+    }
+    .icon {
+        position: absolute;
+        height: 82.2%;
+        width: 63.26%;
+        top: 8.33%;
+        right: 18.35%;
+        bottom: 9.48%;
+        left: 18.39%;
+        max-width: 100%;
+        overflow: hidden;
+        max-height: 100%;
+    }
+    .notif-toggle {
+        position: absolute;
+        width: 9.57%;
+        top: 0px;
+        right: 90.43%;
+        left: 0%;
+        height: 26.4px;
+    }
+    .baby {
+        align-self: stretch;
+        position: relative;
+        
+        height: 30px;
+    }
+    .am1 {
+        position: absolute;
+        top: 0%;
+        left: 71.68%;
+        letter-spacing: -0.04em;
+        text-align: right;
+    }
+    .am2 {
+        position: absolute;
+        top: 0%;
+        left: 70.96%;
+        letter-spacing: -0.04em;
+        text-align: right;
+    }
+    .frame1 {
+        align-self: stretch;
+        height: 246px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 13px;
+        text-align: left;
+        font-size: 22px;
+    }
+    .current-salah-time-parent {
+        align-self: stretch;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 24px;
+        font-size: 26px;
+    }
+    .wednesday-may-7 {
+        position: relative;
+        letter-spacing: -0.04em;
+    }
+    .santa-clara-ca {
+        position: relative;
+        letter-spacing: -0.04em;
+        text-align: center;
+    }
+    .date-location {
+        
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 5px;
+        text-align: left;
+        font-size: 14px;
+    }
+    .PrayerTimes-Container {
+        width: 100%;
+        position: relative;
+        border-radius: 16px;
+        background: linear-gradient(90deg, #6c3483, #1f618d);
+        height: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 12px 12px 29px;
+        box-sizing: border-box;
+        gap: 24px;
+        text-align: center;
+        font-size: 10px;
+        color: #fff;
+        font-family: Rubik;
+    }
+
+
+}
