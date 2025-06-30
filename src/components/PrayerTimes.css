@@ -7,42 +7,42 @@
     
 
     .allow-location-access {
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* optional: keep this exactly 111×20 so the button is centered */
-  width: 111px;
-  height: 20px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* optional: keep this exactly 111×20 so the button is centered */
+    width: 111px;
+    height: 20px;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    }
 
 /* make the button into the pill */
-.allow-location-access button {
-  /* force the pill dimensions */
-  min-width: 111px;
-  height: 20px;
+    .allow-location-access button {
+    /* force the pill dimensions */
+    min-width: 111px;
+    height: 20px;
 
-  /* white 1px outline, rounded 8px corners */
-  border: 1px solid #fff;
-  border-radius: 8px;
+    /* white 1px outline, rounded 8px corners */
+    border: 1px solid #fff;
+    border-radius: 8px;
 
-  /* transparent background so your gradient shows through */
-  background: transparent;
+    /* transparent background so your gradient shows through */
+    background: transparent;
 
-  /* match Figma typography */
-  font-size: 10px;
-  font-family: Rubik, sans-serif;
-  color: #fff;
-  letter-spacing: -0.04em;
+    /* match Figma typography */
+    font-size: 10px;
+    font-family: Rubik, sans-serif;
+    color: #fff;
+    letter-spacing: -0.04em;
 
-  /* tight padding, so text sits nicely centered */
-  padding: 0 8px;
+    /* tight padding, so text sits nicely centered */
+    padding: 0 8px;
 
-  cursor: pointer;
-}
+    cursor: pointer;
+    }
 
     .frame {
         align-self: stretch;
@@ -194,11 +194,12 @@
     }
     .PrayerTimes-Container {
         width: 100%;
+        height: 100%;
         position: relative;
         border-radius: 16px;
         background: linear-gradient(90deg, #6c3483, #1f618d);
-        height: 600px;
         display: flex;
+        overflow: hidden;
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
@@ -207,7 +208,7 @@
         gap: 24px;
         text-align: center;
         font-size: 10px;
-        color: #fff;
+        color: white;
         font-family: Rubik;
     }
 
