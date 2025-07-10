@@ -1,12 +1,9 @@
-// src/components/PrayerTimes.jsx
 import React, { useState, useEffect, useCallback } from "react";
+import SalahSyncLocationAccessPage from "./SalahSyncLocationAccess.jsx";
 import "./PrayerTimes.css";
-import { Bell,BellRing } from "lucide-react";
-import { CircularProgressbar, buildStyles} from 'react-circular-progressbar';
+import { Bell, BellRing } from "lucide-react";
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-
-
-
 
 export default function PrayerTimes() {
   // ─── State ──────────────────────────────────────────────────────────────
@@ -17,8 +14,9 @@ export default function PrayerTimes() {
   const [progress, setProgress]           = useState(0);
   const [location, setLocation]           = useState({});
   const [locationAccessGranted, setLocationAccessGranted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]             = useState(false);
   const [notifications, setNotifications] = useState({});
+  const [showLanding, setShowLanding]     = useState(true);
   const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
 
   // ─── Helpers ────────────────────────────────────────────────────────────
@@ -50,7 +48,6 @@ export default function PrayerTimes() {
       const dt = new Date(`${now.toDateString()} ${timings[name]}`);
       if (dt > now) return { name, time: dt };
     }
-    // fallback to tomorrow’s Fajr at 05:55
     const nxt = new Date();
     nxt.setDate(nxt.getDate() + 1);
     nxt.setHours(5,55,0,0);
@@ -69,8 +66,9 @@ export default function PrayerTimes() {
 
   const reverseGeocode = async (lat, lon) => {
     try {
-      const url = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lon}&key=${apiKey}`;
-      const res = await fetch(url);
+      const res = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lon}&key=${apiKey}`
+      );
       if (!res.ok) throw new Error(res.status);
       const js = await res.json();
       const comp = js.results?.[0]?.components;
@@ -99,8 +97,6 @@ export default function PrayerTimes() {
       setCurrentPrayer(curr);
       setNextPrayer(nxt);
       updateCountdown(nxt);
-
-      // schedule countdown+progress updates
     } catch (e) {
       console.error("fetchPrayerTimes:", e);
     } finally {
@@ -108,9 +104,10 @@ export default function PrayerTimes() {
     }
   }, []);
 
-  // ─── Geolocation & handlers ─────────────────────────────────────────────
+  // ─── Handlers ───────────────────────────────────────────────────────────
   const requestGeolocation = () => {
     setLoading(true);
+    setShowLanding(false);
     navigator.geolocation.getCurrentPosition(
       async pos => {
         const { latitude: lat, longitude: lon } = pos.coords;
@@ -122,23 +119,16 @@ export default function PrayerTimes() {
       () => {
         alert("Location denied");
         setLoading(false);
+        setShowLanding(true);
       },
       { enableHighAccuracy: true }
     );
   };
 
-  // Use your existing hanafiAsrTime function here:
-  const hanafiAsrTime = () => {
-    // e.g. re-fetch with hanafi-specific parameters
-    const { lat, lon } = location;
-    if (lat && lon) fetchPrayerTimes(lat, lon);
-  };
-
   // ─── Effects ────────────────────────────────────────────────────────────
-  // Chrome storage listener for external changes
   useEffect(() => {
     const listener = (changes, area) => {
-      if (area==="local" && changes.prayerTimes) {
+      if (area === "local" && changes.prayerTimes) {
         const newTimes = changes.prayerTimes.newValue;
         setPrayerTimes(newTimes);
         const curr = findCurrentPrayer(newTimes);
@@ -151,37 +141,41 @@ export default function PrayerTimes() {
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
-  // countdown + progress ticker
   useEffect(() => {
     if (!nextPrayer || !currentPrayer) return;
     const id = setInterval(() => {
       updateCountdown(nextPrayer);
-      const total = nextPrayer.time - currentPrayer.time;
+      const total   = nextPrayer.time - currentPrayer.time;
       const elapsed = Date.now() - currentPrayer.time;
       setProgress(Math.max(0, Math.min(elapsed/total,1)));
     }, 1000);
     return () => clearInterval(id);
   }, [nextPrayer, currentPrayer]);
 
-  const toggleNotification = name => {
-  setNotifications(prev => ({ ...prev, [name]: !prev[name] }));
-};
+  const toggleNotification = name =>
+    setNotifications(prev => ({ ...prev, [name]: !prev[name] }));
+
+  const fmt = dt =>
+    dt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true});
 
   // ─── Render ─────────────────────────────────────────────────────────────
-  const fmt = dt =>
-    dt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  if (showLanding) {
+    return (
+      <SalahSyncLocationAccessPage
+        onRequestLocation={requestGeolocation}
+        loading={loading}
+      />
+    );
+  }
 
   return (
     <div className="PrayerTimes-Container">
       {/* Top Bar */}
       <div className="frame">
-        <div className="component-3">
-        
-          <div className="allow-location-access">
-            <button onClick={requestGeolocation} disabled={loading}>
-              {loading ? "Fetching..." : "Allow Location Access"}
-            </button>
-          </div>
+        <div className="allow-location-access">
+          <button onClick={requestGeolocation} disabled={loading}>
+            {loading ? "Fetching..." : "Allow Location Access"}
+          </button>
         </div>
       </div>
 
@@ -215,10 +209,15 @@ export default function PrayerTimes() {
           const isCurrent = name === currentPrayer?.name;
           const suffix    = name === "Dhuhr" ? "2" : name === "Sunrise" ? "1" : "";
           const isOn      = !!notifications[name];
+          const formatted = fmt(new Date(`${new Date().toDateString()} ${time}`));
+  const [timeStr, ampm] = formatted.split(" ");
           return (
             <div key={name} className={`baby ${isCurrent ? "font-bold" : ""}`}>
               <div className="fajr">{name}</div>
-              <div className={`am${suffix}`}>{time}</div>
+              <div className={`am${suffix}`}>
+                <span className="time">{timeStr}</span>
+                <span className="ampm">{ampm}</span>
+              </div>
               <div className="track-shape" />
               <div className="notif-toggle" onClick={() => toggleNotification(name)}>
                 {isOn ? <BellRing className="icon" /> : <Bell className="icon" />}
