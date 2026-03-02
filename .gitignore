@@ -27,3 +27,6 @@ dist.crx
 .qodo
 .env
 /dist/
+# Sensitive signing keys
+*.pem
+dist.pem

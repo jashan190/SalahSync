@@ -3,9 +3,10 @@
   "name": "SalahSync",
   "version": "1.0",
   "description": "Sync your day with the times of Salah.",
-  "permissions": ["geolocation"],
+  "permissions": ["geolocation", "notifications"],
   "host_permissions": [
-    "https://api.aladhan.com/*"
+    "https://api.aladhan.com/*",
+    "https://api.opencagedata.com/*"
   ],
 
   "icons": {
