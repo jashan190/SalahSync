@@ -119,9 +119,46 @@ Use this section for production-facing progress updates.
 - Defined V1 scope, architecture, and rollout phases.
 - Added initial data contracts for class meetings and conflict reports.
 
+### 2026-03-21
+- Removed "Refresh Prayer Times" button from UI — prayer times now load silently on mount; UI is schedule-parser-first.
+- Completed all Phase 1 MVP tasks (parser + conflict logic integrated into popup UI).
+- Added `src/data/sampleSchedules/` with `sample_freeform.txt` and `sample_csv.csv` test fixtures.
+- Added vitest test suite (30 tests, 100% pass): `src/parser/ucdScheduleParser.test.js` and `src/conflicts/prayerConflictEngine.test.js`.
+- Production interface decision: lightweight web form inside the Chrome extension popup.
+- **Prayer time source decision:** Follow Islamic Center of Davis (davismasjid.org) timings as the source of truth, not raw Aladhan API defaults.
+- **Verified Davis Masjid prayer times and iqamah offsets** from davismasjid.org (March 21, 2026):
+
+| Prayer | Athan | Iqamah | Offset |
+|--------|-------|--------|--------|
+| Fajr   | 05:56 | 06:21  | +25 min |
+| Dhuhr  | 01:17 | 01:27  | +10 min |
+| Asr    | 04:41 | 04:51  | +10 min |
+| Maghrib| 07:19 | 07:29  | +10 min |
+| Isha   | 08:33 | 08:53  | +20 min |
+
+- **Updated `DAVIS_COORDS`** to exact masjid coordinates: `38.5465°N, -121.7563°W` (was 38.5449, -121.7405).
+- **Added `IQAMAH_OFFSETS`** constant in `PrayerTimes.jsx` with verified offsets above.
+- **Conflict engine now uses iqamah times** (not athan times) — students must be at the masjid by iqamah, so class conflicts are evaluated against iqamah windows.
+
+### Technical note on davismasjid.org data sourcing
+davismasjid.org is a fully JavaScript-rendered SPA. The HTML served to non-JS clients is a bare shell with no data. No public API endpoint or prayer time widget source was found. Current approach:
+- Aladhan API (`method=2`, ISNA 15°/15°) with exact masjid coordinates gives athan times within ~2–3 min of the masjid's posted times (same calculation method).
+- Iqamah times are applied via hardcoded offsets verified from the live site.
+- If the masjid changes their iqamah schedule (e.g., for Ramadan), `IQAMAH_OFFSETS` in `PrayerTimes.jsx` must be updated manually.
+
 ## 11) Immediate Next Build Tasks
-1. Add `src/parser/ucdScheduleParser.js` with sample-based parser logic.
-2. Add `src/conflicts/prayerConflictEngine.js` for interval overlap detection.
-3. Add `src/data/sampleSchedules/` with anonymized test fixtures.
-4. Add tests for parser and conflict detection (`vitest` or existing test runner).
-5. Decide first production interface: CLI report or lightweight web form.
+- [x] Add `src/parser/ucdScheduleParser.js` with sample-based parser logic.
+- [x] Add `src/conflicts/prayerConflictEngine.js` for interval overlap detection.
+- [x] Add `src/data/sampleSchedules/` with anonymized test fixtures.
+- [x] Add tests for parser and conflict detection (vitest — 30 tests passing).
+- [x] Decide first production interface: lightweight web form in Chrome extension popup.
+- [x] Switch to Davis Masjid coordinates and iqamah-based conflict windows.
+
+## 12) Remaining Phase 2 Tasks
+- [ ] Add DST boundary tests (spring-forward / fall-back edge cases).
+- [ ] Add caching for Aladhan API responses (avoid redundant fetches, rate-limit protection).
+- [ ] Add retry/backoff for prayer API failures with offline fallback.
+- [ ] Add logging/monitoring for parse errors and API failures.
+- [ ] Privacy review: confirm no schedule data is persisted beyond the session.
+- [ ] Revisit iqamah offsets for Ramadan schedule (masjid typically changes them).
+- [ ] Explore direct data sourcing from davismasjid.org if the site ever exposes a public API or stable widget endpoint.

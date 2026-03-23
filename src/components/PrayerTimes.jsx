@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import SalahSyncLocationAccessPage from "./SalahSyncLocationAccess.jsx";
 import "./PrayerTimes.css";
 import { Bell, BellRing } from "lucide-react";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
@@ -7,22 +6,50 @@ import "react-circular-progressbar/dist/styles.css";
 import { parseUcdScheduleInput } from "../parser/ucdScheduleParser";
 import { detectPrayerConflicts } from "../conflicts/prayerConflictEngine";
 
+// Exact coordinates of the Islamic Center of Davis (539 Russell Blvd)
+const DAVIS_COORDS = {
+  latitude: 38.5465,
+  longitude: -121.7563,
+  label: "Davis, CA",
+};
+
+// Verified iqamah offsets (minutes after athan) sourced from davismasjid.org
+const IQAMAH_OFFSETS = {
+  Fajr: 25,
+  Dhuhr: 10,
+  Asr: 10,
+  Maghrib: 10,
+  Isha: 20,
+};
+
+// Apply iqamah offsets to athan times to get the times students must arrive by
+function computeIqamahTimes(athanTimes) {
+  const result = {};
+  for (const [prayer, offsetMin] of Object.entries(IQAMAH_OFFSETS)) {
+    const athan = athanTimes[prayer];
+    if (!athan) continue;
+    const match = String(athan).match(/(\d{1,2}):(\d{2})/);
+    if (!match) continue;
+    const totalMin = Number(match[1]) * 60 + Number(match[2]) + offsetMin;
+    const h = String(Math.floor(totalMin / 60) % 24).padStart(2, "0");
+    const m = String(totalMin % 60).padStart(2, "0");
+    result[prayer] = `${h}:${m}`;
+  }
+  return result;
+}
+
 export default function PrayerTimes() {
   const [prayerTimes, setPrayerTimes] = useState({});
   const [currentPrayer, setCurrentPrayer] = useState(null);
   const [nextPrayer, setNextPrayer] = useState(null);
   const [countdown, setCountdown] = useState("");
   const [progress, setProgress] = useState(0);
-  const [location, setLocation] = useState({});
-  const [locationAccessGranted, setLocationAccessGranted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState({});
-  const [showLanding, setShowLanding] = useState(true);
   const [scheduleInput, setScheduleInput] = useState("");
   const [classMeetings, setClassMeetings] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
 
-  const apiKey = import.meta.env.VITE_OPENCAGE_API_KEY;
   const reminderTimersRef = useRef([]);
   const conflictReminderLogRef = useRef(new Set());
 
@@ -37,23 +64,27 @@ export default function PrayerTimes() {
     const now = new Date();
     const order = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
     let last = null;
+
     for (const name of order) {
       if (!timings[name]) continue;
       const dt = new Date(`${now.toDateString()} ${timings[name]}`);
       if (dt <= now) last = { name, time: dt };
       else break;
     }
+
     return last;
   };
 
   const findNextPrayer = (timings) => {
     const now = new Date();
     const order = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
     for (const name of order) {
       if (!timings[name]) continue;
       const dt = new Date(`${now.toDateString()} ${timings[name]}`);
       if (dt > now) return { name, time: dt };
     }
+
     const nxt = new Date();
     nxt.setDate(nxt.getDate() + 1);
     nxt.setHours(5, 55, 0, 0);
@@ -65,11 +96,13 @@ export default function PrayerTimes() {
       setCountdown("No upcoming prayer.");
       return;
     }
+
     const diff = next.time - new Date();
     if (diff <= 0) {
       setCountdown("It's time to pray!");
       return;
     }
+
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
@@ -79,33 +112,18 @@ export default function PrayerTimes() {
   const toDateForToday = (timeText) => {
     const normalized = String(timeText || "").match(/\d{1,2}:\d{2}/)?.[0];
     if (!normalized) return null;
+
     const [hh, mm] = normalized.split(":").map(Number);
     const date = new Date();
     date.setHours(hh, mm, 0, 0);
     return date;
   };
 
-  const reverseGeocode = async (lat, lon) => {
-    try {
-      const res = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lon}&key=${apiKey}`
-      );
-      if (!res.ok) throw new Error(String(res.status));
-      const js = await res.json();
-      const comp = js.results?.[0]?.components;
-      if (!comp) throw new Error("no data");
-      const city = comp.city || comp.town || comp.village;
-      const state = comp.state;
-      return city && state ? `${city}, ${state}` : null;
-    } catch {
-      return null;
-    }
-  };
-
   const requestNotificationPermission = async () => {
     if (typeof Notification === "undefined") return false;
     if (Notification.permission === "granted") return true;
     if (Notification.permission === "denied") return false;
+
     const result = await Notification.requestPermission();
     return result === "granted";
   };
@@ -126,12 +144,14 @@ export default function PrayerTimes() {
     }
   };
 
-  const fetchPrayerTimes = useCallback(async (lat, lon) => {
+  const fetchPrayerTimes = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(
-        `https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=2`
+        `https://api.aladhan.com/v1/timings?latitude=${DAVIS_COORDS.latitude}&longitude=${DAVIS_COORDS.longitude}&method=2`
       );
       if (!res.ok) throw new Error(String(res.status));
+
       const { data } = await res.json();
       const times = filterPrayerTimes(data.timings);
       setPrayerTimes(times);
@@ -148,36 +168,19 @@ export default function PrayerTimes() {
     }
   }, []);
 
+  // Use iqamah times (not athan) as conflict windows — students must arrive by iqamah
+  const iqamahTimes = useMemo(() => computeIqamahTimes(prayerTimes), [prayerTimes]);
+
   const conflicts = useMemo(
     () =>
-      detectPrayerConflicts(classMeetings, prayerTimes, {
+      detectPrayerConflicts(classMeetings, iqamahTimes, {
         windowMinutes: 20,
         bufferMinutes: 10,
       }),
-    [classMeetings, prayerTimes]
+    [classMeetings, iqamahTimes]
   );
 
   const weekdayCode = ["U", "M", "T", "W", "R", "F", "S"][new Date().getDay()];
-
-  const requestGeolocation = () => {
-    setLoading(true);
-    setShowLanding(false);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const locStr = await reverseGeocode(lat, lon);
-        setLocation({ lat, lon, cityState: locStr });
-        setLocationAccessGranted(true);
-        fetchPrayerTimes(lat, lon);
-      },
-      () => {
-        alert("Location denied");
-        setLoading(false);
-        setShowLanding(true);
-      },
-      { enableHighAccuracy: true }
-    );
-  };
 
   const handleParseSchedule = () => {
     const { meetings, errors } = parseUcdScheduleInput(scheduleInput);
@@ -195,13 +198,21 @@ export default function PrayerTimes() {
     dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
   useEffect(() => {
+    fetchPrayerTimes();
+    const refreshId = setInterval(fetchPrayerTimes, 6 * 60 * 60 * 1000);
+    return () => clearInterval(refreshId);
+  }, [fetchPrayerTimes]);
+
+  useEffect(() => {
     if (!nextPrayer || !currentPrayer) return;
+
     const id = setInterval(() => {
       updateCountdown(nextPrayer);
       const total = nextPrayer.time - currentPrayer.time;
       const elapsed = Date.now() - currentPrayer.time;
       setProgress(Math.max(0, Math.min(elapsed / total, 1)));
     }, 1000);
+
     return () => clearInterval(id);
   }, [nextPrayer, currentPrayer]);
 
@@ -211,17 +222,21 @@ export default function PrayerTimes() {
 
     Object.entries(notifications).forEach(([prayer, enabled]) => {
       if (!enabled || !prayerTimes[prayer]) return;
+
       const triggerAt = toDateForToday(prayerTimes[prayer]);
       if (!triggerAt) return;
+
       const waitMs = triggerAt.getTime() - Date.now();
       if (waitMs <= 0) return;
+
       const timerId = setTimeout(() => {
         sendReminderNotification(
           `Time for ${prayer}`,
-          `Your ${prayer} prayer time has started.`,
+          `Your ${prayer} prayer time has started in ${DAVIS_COORDS.label}.`,
           `prayer-${prayer}-${Date.now()}`
         );
       }, waitMs);
+
       reminderTimersRef.current.push(timerId);
     });
 
@@ -233,6 +248,7 @@ export default function PrayerTimes() {
 
   useEffect(() => {
     if (!nextPrayer) return;
+
     const upcomingConflict = conflicts.find(
       (conflict) =>
         conflict.days.includes(weekdayCode) &&
@@ -255,20 +271,8 @@ export default function PrayerTimes() {
     );
   }, [conflicts, nextPrayer, weekdayCode]);
 
-  if (showLanding) {
-    return <SalahSyncLocationAccessPage onRequestLocation={requestGeolocation} loading={loading} />;
-  }
-
   return (
     <div className="PrayerTimes-Container">
-      <div className="frame">
-        <div className="allow-location-access">
-          <button onClick={requestGeolocation} disabled={loading}>
-            {loading ? "Fetching..." : "Allow Location Access"}
-          </button>
-        </div>
-      </div>
-
       <div className="current-salah-time-parent">
         <div className="current-salah-time">
           <b className="dhuhr">{currentPrayer?.name || "--"}</b>
@@ -299,6 +303,7 @@ export default function PrayerTimes() {
           const isOn = !!notifications[name];
           const formatted = fmt(new Date(`${new Date().toDateString()} ${time}`));
           const [timeStr, ampm] = formatted.split(" ");
+
           return (
             <div key={name} className={`baby ${isCurrent ? "font-bold" : ""}`}>
               <div className="fajr">{name}</div>
@@ -370,12 +375,7 @@ export default function PrayerTimes() {
             year: "numeric",
           })}
         </div>
-        <div className="santa-clara-ca">
-          {location.cityState ||
-            (locationAccessGranted
-              ? `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`
-              : "Unknown location")}
-        </div>
+        <div className="santa-clara-ca">{DAVIS_COORDS.label}</div>
       </div>
     </div>
   );
