@@ -1,18 +1,28 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { resolve } from "path";
 
 export default defineConfig({
-  plugins: [react(),tailwindcss()],
-  base: './',
+  plugins: [react()],
+  define: {
+    "process.env.NODE_ENV": '"production"',
+  },
   build: {
-    outDir: 'dist',
+    outDir: "dist",
+    emptyOutDir: false,
+    lib: {
+      entry: resolve(__dirname, "src/content/content.jsx"),
+      name: "SalahSyncContent",
+      formats: ["iife"],
+      fileName: () => "content.js",
+    },
     rollupOptions: {
-        output: {
-        }
-      }
+      output: {
+        inlineDynamicImports: true,
+      },
+    },
   },
   test: {
-    environment: 'node',
+    environment: "node",
   },
 });

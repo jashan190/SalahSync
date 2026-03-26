@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { parseUcdScheduleInput } from "../parser/ucdScheduleParser";
 import { detectPrayerConflicts } from "../conflicts/prayerConflictEngine";
 
+// ── Shared helpers (same as popup) ───────────────────────────────────────────
 const CACHE_KEY = "salahsync_prayer_cache";
 
 async function readCache() {
@@ -50,8 +51,7 @@ async function fetchWithRetry(url, maxRetries = 3) {
   throw lastErr;
 }
 
-const DAVIS_COORDS = { latitude: 38.5465, longitude: -121.7563, label: "Davis, CA" };
-
+const DAVIS_COORDS = { latitude: 38.5465, longitude: -121.7563 };
 const IQAMAH_OFFSETS = { Fajr: 25, Dhuhr: 10, Asr: 10, Maghrib: 10, Isha: 20 };
 
 function computeIqamahTimes(athanTimes) {
@@ -62,9 +62,7 @@ function computeIqamahTimes(athanTimes) {
     const match = String(athan).match(/(\d{1,2}):(\d{2})/);
     if (!match) continue;
     const totalMin = Number(match[1]) * 60 + Number(match[2]) + offsetMin;
-    const h = String(Math.floor(totalMin / 60) % 24).padStart(2, "0");
-    const m = String(totalMin % 60).padStart(2, "0");
-    result[prayer] = `${h}:${m}`;
+    result[prayer] = `${String(Math.floor(totalMin / 60) % 24).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
   }
   return result;
 }
@@ -76,19 +74,19 @@ const filterPrayerTimes = (timings) =>
     )
   );
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function Panel() {
-  const [open, setOpen] = useState(false);
   const [prayerTimes, setPrayerTimes] = useState({});
   const [cacheStatus, setCacheStatus] = useState(null);
   const [scheduleInput, setScheduleInput] = useState("");
   const [classMeetings, setClassMeetings] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
+  const [checked, setChecked] = useState(false);
 
   const fetchPrayerTimes = useCallback(async () => {
     const cached = await readCache();
     if (isCacheForToday(cached)) {
       setPrayerTimes(cached.timings);
-      setCacheStatus(null);
       return;
     }
     try {
@@ -100,7 +98,7 @@ export default function Panel() {
       setPrayerTimes(times);
       setCacheStatus(null);
     } catch (e) {
-      console.error("SalahSync: prayer time fetch failed", e);
+      console.error("SalahSync: prayer fetch failed", e);
       if (cached?.timings) {
         setPrayerTimes(cached.timings);
         setCacheStatus("stale");
@@ -123,72 +121,60 @@ export default function Panel() {
     [classMeetings, iqamahTimes]
   );
 
-  const handleParse = () => {
+  const handleCheck = () => {
     const { meetings, errors } = parseUcdScheduleInput(scheduleInput);
     setClassMeetings(meetings);
     setParseErrors(errors);
+    setChecked(true);
   };
 
   return (
-    <>
-      <button className="ss-toggle" onClick={() => setOpen((o) => !o)}>
-        {open ? "✕" : "Salah\nSync"}
-      </button>
+    <div className="ss-card">
+      <div className="ss-header">
+        <span className="ss-title">SalahSync</span>
+        <span className="ss-subtitle">Prayer conflict checker · Islamic Center of Davis iqamah times</span>
+        {cacheStatus === "stale" && <span className="ss-badge stale">Offline — cached times</span>}
+        {cacheStatus === "error" && <span className="ss-badge error">Could not load prayer times</span>}
+      </div>
 
-      {open && (
-        <div className="ss-panel">
-          <div className="ss-header">
-            <span className="ss-title">SalahSync</span>
-            <span className="ss-subtitle">UC Davis Prayer Conflict Checker</span>
-          </div>
+      <div className="ss-body">
+        <textarea
+          className="ss-input"
+          value={scheduleInput}
+          onChange={(e) => setScheduleInput(e.target.value)}
+          placeholder={"Paste your classes. Example:\nECS 122A A01 MWF 10:00 AM - 10:50 AM\nMAT 021A B01 TR 1:10 PM - 3:00 PM"}
+        />
+        <button className="ss-btn" onClick={handleCheck}>
+          Check for Prayer Conflicts
+        </button>
+      </div>
 
-          <div className="ss-section">
-            <div className="ss-section-title">Paste Your Schedule</div>
-            <textarea
-              className="ss-input"
-              value={scheduleInput}
-              onChange={(e) => setScheduleInput(e.target.value)}
-              placeholder={"ECS 122A A01 MWF 10:00 AM - 10:50 AM\nMAT 021A B01 TR 1:10 PM - 3:00 PM"}
-            />
-            <button className="ss-btn" onClick={handleParse}>
-              Check for Conflicts
-            </button>
-            {parseErrors.length > 0 && <div className="ss-msg-error">{parseErrors[0]}</div>}
-            {classMeetings.length > 0 && (
-              <div className="ss-msg-success">Parsed {classMeetings.length} class meeting(s).</div>
-            )}
-          </div>
+      {parseErrors.length > 0 && (
+        <div className="ss-alert error">{parseErrors[0]}</div>
+      )}
 
-          <div className="ss-section">
-            <div className="ss-section-title">Prayer Conflicts</div>
-            {conflicts.length === 0 ? (
-              <div className="ss-no-conflicts">
-                {classMeetings.length === 0
-                  ? "Paste your schedule above to check."
-                  : "No conflicts detected."}
-              </div>
-            ) : (
-              conflicts.map((c) => (
-                <div key={c.id} className={`ss-conflict ${c.severity}`}>
-                  <span>{c.courseCode} {c.section} ({c.days.join("")})</span>
-                  <span>{c.prayer}: {c.classInterval}</span>
-                  <span className="ss-conflict-badge">{c.severity.toUpperCase()}</span>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="ss-footer">
-            {DAVIS_COORDS.label} · Islamic Center of Davis iqamah times
-            {cacheStatus === "stale" && (
-              <div className="ss-cache-notice stale">Offline — cached times</div>
-            )}
-            {cacheStatus === "error" && (
-              <div className="ss-cache-notice error">Could not load prayer times</div>
-            )}
-          </div>
+      {checked && classMeetings.length > 0 && conflicts.length === 0 && (
+        <div className="ss-alert ok">
+          No prayer conflicts found for {classMeetings.length} class meeting(s).
         </div>
       )}
-    </>
+
+      {conflicts.length > 0 && (
+        <div className="ss-conflicts">
+          {conflicts.map((c) => (
+            <div key={c.id} className={`ss-conflict ${c.severity}`}>
+              <div className="ss-conflict-main">
+                <strong>{c.courseCode} {c.section}</strong>
+                <span className="ss-days">({c.days.join("")})</span>
+                <span className={`ss-badge ${c.severity}`}>{c.severity.toUpperCase()}</span>
+              </div>
+              <div className="ss-conflict-detail">
+                {c.prayer} iqamah window &nbsp;·&nbsp; class: {c.classInterval}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

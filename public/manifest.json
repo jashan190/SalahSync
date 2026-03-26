@@ -22,9 +22,7 @@
     "128":"SalahSync 128x128.png"
   },
   "action": {
-    "default_popup": "index.html",
-    "default_popup_width": 300,
-    "default_popup_height": 600
+    "default_icon": "SalahSync 48x48.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
