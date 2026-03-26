@@ -1,8 +1,25 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { parseUcdScheduleInput } from "../parser/ucdScheduleParser";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { detectPrayerConflicts } from "../conflicts/prayerConflictEngine";
+import { scanPageForClasses, expandCourseDetails } from "./pageParser";
 
-// ── Shared helpers (same as popup) ───────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function to12h(time24) {
+  const m = String(time24).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return time24;
+  let h = Number(m[1]);
+  const min = m[2];
+  const ampm = h >= 12 ? "PM" : "AM";
+  if (h > 12) h -= 12;
+  if (h === 0) h = 12;
+  return `${h}:${min} ${ampm}`;
+}
+
+function formatInterval(interval) {
+  const [start, end] = interval.split("-");
+  return `${to12h(start)} – ${to12h(end)}`;
+}
+
+// ── Cache helpers ─────────────────────────────────────────────────────────────
 const CACHE_KEY = "salahsync_prayer_cache";
 
 async function readCache() {
@@ -78,17 +95,13 @@ const filterPrayerTimes = (timings) =>
 export default function Panel() {
   const [prayerTimes, setPrayerTimes] = useState({});
   const [cacheStatus, setCacheStatus] = useState(null);
-  const [scheduleInput, setScheduleInput] = useState("");
   const [classMeetings, setClassMeetings] = useState([]);
-  const [parseErrors, setParseErrors] = useState([]);
-  const [checked, setChecked] = useState(false);
+  const scanTimerRef = useRef(null);
 
+  // ── Prayer times ────────────────────────────────────────────────────────────
   const fetchPrayerTimes = useCallback(async () => {
     const cached = await readCache();
-    if (isCacheForToday(cached)) {
-      setPrayerTimes(cached.timings);
-      return;
-    }
+    if (isCacheForToday(cached)) { setPrayerTimes(cached.timings); return; }
     try {
       const json = await fetchWithRetry(
         `https://api.aladhan.com/v1/timings?latitude=${DAVIS_COORDS.latitude}&longitude=${DAVIS_COORDS.longitude}&method=2`
@@ -99,12 +112,8 @@ export default function Panel() {
       setCacheStatus(null);
     } catch (e) {
       console.error("SalahSync: prayer fetch failed", e);
-      if (cached?.timings) {
-        setPrayerTimes(cached.timings);
-        setCacheStatus("stale");
-      } else {
-        setCacheStatus("error");
-      }
+      if (cached?.timings) { setPrayerTimes(cached.timings); setCacheStatus("stale"); }
+      else setCacheStatus("error");
     }
   }, []);
 
@@ -114,62 +123,84 @@ export default function Panel() {
     return () => clearInterval(id);
   }, [fetchPrayerTimes]);
 
+  // ── Page scanner ────────────────────────────────────────────────────────────
+  const runScan = useCallback(() => {
+    const meetings = scanPageForClasses();
+    setClassMeetings(meetings);
+  }, []);
+
+  useEffect(() => {
+    // Expand all collapsed course detail sections, then scan.
+    // Called on mount and whenever the DOM changes (e.g. user adds a course).
+    const expandAndScan = () => {
+      expandCourseDetails();
+      // Delay scan so the expansion DOM updates can settle first
+      clearTimeout(scanTimerRef.current);
+      scanTimerRef.current = setTimeout(runScan, 800);
+    };
+
+    // Initial expand + scan after SPA finishes rendering
+    const initTimer = setTimeout(expandAndScan, 800);
+
+    // Re-expand + re-scan whenever Schedule Builder DOM changes
+    const observer = new MutationObserver(() => {
+      clearTimeout(scanTimerRef.current);
+      scanTimerRef.current = setTimeout(expandAndScan, 600);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(scanTimerRef.current);
+      clearTimeout(initTimer);
+    };
+  }, [runScan]);
+
+  // ── Conflict detection ──────────────────────────────────────────────────────
   const iqamahTimes = useMemo(() => computeIqamahTimes(prayerTimes), [prayerTimes]);
 
   const conflicts = useMemo(
-    () => detectPrayerConflicts(classMeetings, iqamahTimes, { windowMinutes: 20, bufferMinutes: 10 }),
-    [classMeetings, iqamahTimes]
+    () => detectPrayerConflicts(classMeetings, prayerTimes, iqamahTimes),
+    [classMeetings, prayerTimes, iqamahTimes]
   );
 
-  const handleCheck = () => {
-    const { meetings, errors } = parseUcdScheduleInput(scheduleInput);
-    setClassMeetings(meetings);
-    setParseErrors(errors);
-    setChecked(true);
-  };
-
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="ss-card">
       <div className="ss-header">
         <span className="ss-title">SalahSync</span>
-        <span className="ss-subtitle">Prayer conflict checker · Islamic Center of Davis iqamah times</span>
+        <span className="ss-subtitle">
+          Prayer conflict checker · Islamic Center of Davis iqamah times
+          {classMeetings.length > 0 && ` · ${classMeetings.length} class(es) detected`}
+        </span>
         {cacheStatus === "stale" && <span className="ss-badge stale">Offline — cached times</span>}
         {cacheStatus === "error" && <span className="ss-badge error">Could not load prayer times</span>}
       </div>
 
-      <div className="ss-body">
-        <textarea
-          className="ss-input"
-          value={scheduleInput}
-          onChange={(e) => setScheduleInput(e.target.value)}
-          placeholder={"Paste your classes. Example:\nECS 122A A01 MWF 10:00 AM - 10:50 AM\nMAT 021A B01 TR 1:10 PM - 3:00 PM"}
-        />
-        <button className="ss-btn" onClick={handleCheck}>
-          Check for Prayer Conflicts
-        </button>
-      </div>
-
-      {parseErrors.length > 0 && (
-        <div className="ss-alert error">{parseErrors[0]}</div>
-      )}
-
-      {checked && classMeetings.length > 0 && conflicts.length === 0 && (
-        <div className="ss-alert ok">
-          No prayer conflicts found for {classMeetings.length} class meeting(s).
+      {classMeetings.length === 0 ? (
+        <div className="ss-alert info">
+          Add classes to your schedule — SalahSync will automatically check for prayer conflicts.
         </div>
-      )}
-
-      {conflicts.length > 0 && (
+      ) : conflicts.length === 0 ? (
+        <div className="ss-alert ok">
+          No prayer conflicts found for your {classMeetings.length} class meeting(s).
+        </div>
+      ) : (
         <div className="ss-conflicts">
           {conflicts.map((c) => (
             <div key={c.id} className={`ss-conflict ${c.severity}`}>
               <div className="ss-conflict-main">
                 <strong>{c.courseCode} {c.section}</strong>
                 <span className="ss-days">({c.days.join("")})</span>
-                <span className={`ss-badge ${c.severity}`}>{c.severity.toUpperCase()}</span>
+                <span className={`ss-badge ${c.severity}`}>
+                  {c.severity === "critical" ? "CRITICAL" : c.severity === "likely" ? "LIKELY MISS" : "IQAMAH"}
+                </span>
               </div>
               <div className="ss-conflict-detail">
-                {c.prayer} iqamah window &nbsp;·&nbsp; class: {c.classInterval}
+                {c.severity === "critical" && `${c.prayer} period blocked · ${c.beforeClass}m before / ${c.afterClass}m after`}
+                {c.severity === "likely"   && `${c.prayer} window tight · ${c.beforeClass}m before / ${c.afterClass}m after`}
+                {c.severity === "iqamah"   && `Misses ${c.prayer} iqamah at Islamic Center of Davis`}
+                &nbsp;·&nbsp; {formatInterval(c.classInterval)}
               </div>
             </div>
           ))}

@@ -36,50 +36,6 @@
   color: #666;
 }
 
-/* ── Input area ──────────────────────────────── */
-.ss-body {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-textarea.ss-input {
-  flex: 1;
-  min-height: 64px;
-  resize: vertical;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-family: system-ui, sans-serif;
-  color: #1a1a2e;
-  line-height: 1.4;
-  outline: none;
-}
-
-textarea.ss-input:focus {
-  border-color: #6c3483;
-}
-
-textarea.ss-input::placeholder {
-  color: #999;
-  font-size: 11px;
-}
-
-.ss-btn {
-  white-space: nowrap;
-  background: linear-gradient(135deg, #6c3483, #1f618d);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 7px 12px;
-  font-size: 12px;
-  font-family: system-ui, sans-serif;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.ss-btn:hover { opacity: 0.88; }
 
 /* ── Alerts ──────────────────────────────────── */
 .ss-alert {
@@ -100,6 +56,12 @@ textarea.ss-input::placeholder {
   border: 1px solid #f5a0a0;
 }
 
+.ss-alert.info {
+  background: #f0f4ff;
+  color: #1e3a6e;
+  border: 1px solid #b0c4f0;
+}
+
 /* ── Conflicts ───────────────────────────────── */
 .ss-conflicts {
   display: flex;
@@ -117,8 +79,9 @@ textarea.ss-input::placeholder {
   gap: 2px;
 }
 
-.ss-conflict.hard { border-left: 4px solid #e53e3e; }
-.ss-conflict.soft { border-left: 4px solid #d97706; }
+.ss-conflict.critical { border-left: 4px solid #c53030; }
+.ss-conflict.likely   { border-left: 4px solid #d97706; }
+.ss-conflict.iqamah   { border-left: 4px solid #7b61ff; }
 
 .ss-conflict-main {
   display: flex;
@@ -142,7 +105,8 @@ textarea.ss-input::placeholder {
   padding: 1px 5px;
 }
 
-.ss-badge.hard { background: #fee2e2; color: #b91c1c; }
-.ss-badge.soft { background: #fef3c7; color: #92400e; }
-.ss-badge.stale { background: #fef9c3; color: #713f12; }
-.ss-badge.error { background: #fee2e2; color: #b91c1c; }
+.ss-badge.critical { background: #fee2e2; color: #b91c1c; }
+.ss-badge.likely   { background: #fef3c7; color: #92400e; }
+.ss-badge.iqamah   { background: #ede9fe; color: #5b21b6; }
+.ss-badge.stale    { background: #fef9c3; color: #713f12; }
+.ss-badge.error    { background: #fee2e2; color: #b91c1c; }
