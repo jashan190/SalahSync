@@ -1,8 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import "./PrayerTimes.css";
-import { Bell, BellRing } from "lucide-react";
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import "react-circular-progressbar/dist/styles.css";
 import { parseUcdScheduleInput } from "../parser/ucdScheduleParser";
 import { detectPrayerConflicts } from "../conflicts/prayerConflictEngine";
 
@@ -74,7 +71,6 @@ const IQAMAH_OFFSETS = {
   Isha: 20,
 };
 
-// Apply iqamah offsets to athan times to get the times students must arrive by
 function computeIqamahTimes(athanTimes) {
   const result = {};
   for (const [prayer, offsetMin] of Object.entries(IQAMAH_OFFSETS)) {
@@ -90,159 +86,54 @@ function computeIqamahTimes(athanTimes) {
   return result;
 }
 
+const filterPrayerTimes = (timings) =>
+  Object.fromEntries(
+    Object.entries(timings).filter(
+      ([k]) => !["Midnight", "Imsak", "Firstthird", "Lastthird", "Sunset"].includes(k)
+    )
+  );
+
 export default function PrayerTimes() {
   const [prayerTimes, setPrayerTimes] = useState({});
-  const [currentPrayer, setCurrentPrayer] = useState(null);
-  const [nextPrayer, setNextPrayer] = useState(null);
-  const [countdown, setCountdown] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [loading, setLoading] = useState(true);
-  // null = fresh data | "stale" = offline fallback | "error" = no data at all
+  // null = fresh | "stale" = offline fallback | "error" = no data
   const [cacheStatus, setCacheStatus] = useState(null);
-  const [notifications, setNotifications] = useState({});
   const [scheduleInput, setScheduleInput] = useState("");
   const [classMeetings, setClassMeetings] = useState([]);
   const [parseErrors, setParseErrors] = useState([]);
 
-  const reminderTimersRef = useRef([]);
-  const conflictReminderLogRef = useRef(new Set());
-
-  const filterPrayerTimes = (timings) =>
-    Object.fromEntries(
-      Object.entries(timings).filter(
-        ([k]) => !["Midnight", "Imsak", "Firstthird", "Lastthird", "Sunset"].includes(k)
-      )
-    );
-
-  const findCurrentPrayer = (timings) => {
-    const now = new Date();
-    const order = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-    let last = null;
-
-    for (const name of order) {
-      if (!timings[name]) continue;
-      const dt = new Date(`${now.toDateString()} ${timings[name]}`);
-      if (dt <= now) last = { name, time: dt };
-      else break;
-    }
-
-    return last;
-  };
-
-  const findNextPrayer = (timings) => {
-    const now = new Date();
-    const order = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-
-    for (const name of order) {
-      if (!timings[name]) continue;
-      const dt = new Date(`${now.toDateString()} ${timings[name]}`);
-      if (dt > now) return { name, time: dt };
-    }
-
-    const nxt = new Date();
-    nxt.setDate(nxt.getDate() + 1);
-    nxt.setHours(5, 55, 0, 0);
-    return { name: "Fajr", time: nxt };
-  };
-
-  const updateCountdown = (next) => {
-    if (!next?.time) {
-      setCountdown("No upcoming prayer.");
-      return;
-    }
-
-    const diff = next.time - new Date();
-    if (diff <= 0) {
-      setCountdown("It's time to pray!");
-      return;
-    }
-
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    setCountdown(`${h}h ${m}m ${s}s`);
-  };
-
-  const toDateForToday = (timeText) => {
-    const normalized = String(timeText || "").match(/\d{1,2}:\d{2}/)?.[0];
-    if (!normalized) return null;
-
-    const [hh, mm] = normalized.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hh, mm, 0, 0);
-    return date;
-  };
-
-  const requestNotificationPermission = async () => {
-    if (typeof Notification === "undefined") return false;
-    if (Notification.permission === "granted") return true;
-    if (Notification.permission === "denied") return false;
-
-    const result = await Notification.requestPermission();
-    return result === "granted";
-  };
-
-  const sendReminderNotification = (title, message, id) => {
-    if (globalThis.chrome?.notifications?.create) {
-      globalThis.chrome.notifications.create(id, {
-        type: "basic",
-        iconUrl: "SalahSync 48x48.png",
-        title,
-        message,
-      });
-      return;
-    }
-
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      new Notification(title, { body: message });
-    }
-  };
-
-  const applyTimes = useCallback((times) => {
-    setPrayerTimes(times);
-    const curr = findCurrentPrayer(times);
-    const nxt = findNextPrayer(times);
-    setCurrentPrayer(curr);
-    setNextPrayer(nxt);
-    updateCountdown(nxt);
-  }, []);
-
   const fetchPrayerTimes = useCallback(async () => {
-    setLoading(true);
-
-    // 1. Serve from cache if it's already today's data
     const cached = await readCache();
     if (isCacheForToday(cached)) {
-      applyTimes(cached.timings);
+      setPrayerTimes(cached.timings);
       setCacheStatus(null);
-      setLoading(false);
       return;
     }
 
-    // 2. Fetch fresh data with retry/backoff
     try {
       const json = await fetchWithRetry(
         `https://api.aladhan.com/v1/timings?latitude=${DAVIS_COORDS.latitude}&longitude=${DAVIS_COORDS.longitude}&method=2`
       );
       const times = filterPrayerTimes(json.data.timings);
       await writeCache(times);
-      applyTimes(times);
+      setPrayerTimes(times);
       setCacheStatus(null);
     } catch (e) {
       console.error("fetchPrayerTimes failed after retries:", e);
-      // 3. Fall back to stale cache rather than showing nothing
       if (cached?.timings) {
-        applyTimes(cached.timings);
+        setPrayerTimes(cached.timings);
         setCacheStatus("stale");
       } else {
         setCacheStatus("error");
       }
-    } finally {
-      setLoading(false);
     }
-  }, [applyTimes]);
+  }, []);
 
-  // Use iqamah times (not athan) as conflict windows — students must arrive by iqamah
+  useEffect(() => {
+    fetchPrayerTimes();
+    const refreshId = setInterval(fetchPrayerTimes, 6 * 60 * 60 * 1000);
+    return () => clearInterval(refreshId);
+  }, [fetchPrayerTimes]);
+
   const iqamahTimes = useMemo(() => computeIqamahTimes(prayerTimes), [prayerTimes]);
 
   const conflicts = useMemo(
@@ -254,156 +145,21 @@ export default function PrayerTimes() {
     [classMeetings, iqamahTimes]
   );
 
-  const weekdayCode = ["U", "M", "T", "W", "R", "F", "S"][new Date().getDay()];
-
   const handleParseSchedule = () => {
     const { meetings, errors } = parseUcdScheduleInput(scheduleInput);
     setClassMeetings(meetings);
     setParseErrors(errors);
   };
 
-  const toggleNotification = async (name) => {
-    const granted = await requestNotificationPermission();
-    if (!granted) return;
-    setNotifications((prev) => ({ ...prev, [name]: !prev[name] }));
-  };
-
-  const fmt = (dt) =>
-    dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-
-  useEffect(() => {
-    fetchPrayerTimes();
-    const refreshId = setInterval(fetchPrayerTimes, 6 * 60 * 60 * 1000);
-    return () => clearInterval(refreshId);
-  }, [fetchPrayerTimes]);
-
-  useEffect(() => {
-    if (!nextPrayer || !currentPrayer) return;
-
-    const id = setInterval(() => {
-      updateCountdown(nextPrayer);
-      const total = nextPrayer.time - currentPrayer.time;
-      const elapsed = Date.now() - currentPrayer.time;
-      setProgress(Math.max(0, Math.min(elapsed / total, 1)));
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, [nextPrayer, currentPrayer]);
-
-  useEffect(() => {
-    reminderTimersRef.current.forEach((timer) => clearTimeout(timer));
-    reminderTimersRef.current = [];
-
-    Object.entries(notifications).forEach(([prayer, enabled]) => {
-      if (!enabled || !prayerTimes[prayer]) return;
-
-      const triggerAt = toDateForToday(prayerTimes[prayer]);
-      if (!triggerAt) return;
-
-      const waitMs = triggerAt.getTime() - Date.now();
-      if (waitMs <= 0) return;
-
-      const timerId = setTimeout(() => {
-        sendReminderNotification(
-          `Time for ${prayer}`,
-          `Your ${prayer} prayer time has started in ${DAVIS_COORDS.label}.`,
-          `prayer-${prayer}-${Date.now()}`
-        );
-      }, waitMs);
-
-      reminderTimersRef.current.push(timerId);
-    });
-
-    return () => {
-      reminderTimersRef.current.forEach((timer) => clearTimeout(timer));
-      reminderTimersRef.current = [];
-    };
-  }, [notifications, prayerTimes]);
-
-  useEffect(() => {
-    if (!nextPrayer) return;
-
-    const upcomingConflict = conflicts.find(
-      (conflict) =>
-        conflict.days.includes(weekdayCode) &&
-        conflict.prayer === nextPrayer.name &&
-        conflict.severity === "hard"
-    );
-    if (!upcomingConflict) return;
-
-    const reminderKey = `${new Date().toDateString()}-${upcomingConflict.id}`;
-    if (conflictReminderLogRef.current.has(reminderKey)) return;
-
-    const msUntilNextPrayer = nextPrayer.time.getTime() - Date.now();
-    if (msUntilNextPrayer <= 0 || msUntilNextPrayer > 45 * 60 * 1000) return;
-
-    conflictReminderLogRef.current.add(reminderKey);
-    sendReminderNotification(
-      "Class vs Prayer Conflict",
-      `${upcomingConflict.courseCode} ${upcomingConflict.section} may overlap ${upcomingConflict.prayer}.`,
-      `conflict-${Date.now()}`
-    );
-  }, [conflicts, nextPrayer, weekdayCode]);
-
   return (
     <div className="PrayerTimes-Container">
-      <div className="current-salah-time-parent">
-        <div className="current-salah-time">
-          <b className="dhuhr">{currentPrayer?.name || "--"}</b>
-        </div>
-        <div className="group-wrapper">
-          <div className="group-container">
-            <div className="progress-bar-parent" style={{ width: 100, height: 100 }}>
-              <CircularProgressbar
-                value={progress * 100}
-                text={countdown}
-                strokeWidth={8}
-                styles={buildStyles({
-                  pathColor: "#fff",
-                  trailColor: "rgba(255,255,255,0.3)",
-                  textColor: "#fff",
-                  textSize: "10px",
-                })}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="frame1">
-        {Object.entries(prayerTimes).map(([name, time]) => {
-          const isCurrent = name === currentPrayer?.name;
-          const suffix = name === "Dhuhr" ? "2" : name === "Sunrise" ? "1" : "";
-          const isOn = !!notifications[name];
-          const formatted = fmt(new Date(`${new Date().toDateString()} ${time}`));
-          const [timeStr, ampm] = formatted.split(" ");
-
-          return (
-            <div key={name} className={`baby ${isCurrent ? "font-bold" : ""}`}>
-              <div className="fajr">{name}</div>
-              <div className={`am${suffix}`}>
-                <span className="time">{timeStr}</span>
-                <span className="ampm">{ampm}</span>
-              </div>
-              <div className="track-shape" />
-              <div
-                className="notif-toggle"
-                onClick={() => toggleNotification(name)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") toggleNotification(name);
-                }}
-              >
-                {isOn ? <BellRing className="icon" /> : <Bell className="icon" />}
-              </div>
-            </div>
-          );
-        })}
+      <div className="app-header">
+        <span className="app-title">SalahSync</span>
+        <span className="app-subtitle">UC Davis Prayer Conflict Checker</span>
       </div>
 
       <div className="schedule-panel">
-        <div className="schedule-title">UC Davis Schedule Parser</div>
+        <div className="schedule-title">Paste Your Schedule</div>
         <textarea
           className="schedule-input"
           value={scheduleInput}
@@ -413,7 +169,7 @@ export default function PrayerTimes() {
           }
         />
         <button className="schedule-parse-btn" onClick={handleParseSchedule}>
-          Parse Schedule
+          Check for Conflicts
         </button>
         {parseErrors.length > 0 && <div className="parse-error">{parseErrors[0]}</div>}
         {classMeetings.length > 0 && (
@@ -424,7 +180,11 @@ export default function PrayerTimes() {
       <div className="conflict-panel">
         <div className="schedule-title">Prayer Conflict Check</div>
         {conflicts.length === 0 ? (
-          <div className="no-conflicts">No conflicts detected with current prayer windows.</div>
+          <div className="no-conflicts">
+            {classMeetings.length === 0
+              ? "Paste your schedule above to check for conflicts."
+              : "No conflicts detected with current prayer windows."}
+          </div>
         ) : (
           conflicts.map((conflict) => (
             <div key={conflict.id} className={`conflict-row ${conflict.severity}`}>
@@ -441,14 +201,6 @@ export default function PrayerTimes() {
       </div>
 
       <div className="date-location">
-        <div className="wednesday-may-7">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </div>
         <div className="santa-clara-ca">{DAVIS_COORDS.label}</div>
         {cacheStatus === "stale" && (
           <div className="cache-notice stale">Offline — showing cached times</div>
