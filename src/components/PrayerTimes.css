@@ -199,7 +199,6 @@
         border-radius: 16px;
         background: linear-gradient(90deg, #6c3483, #1f618d);
         display: flex;
-        overflow-y: auto;
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
