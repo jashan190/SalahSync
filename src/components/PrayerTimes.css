@@ -309,5 +309,21 @@
         opacity: 0.9;
     }
 
+    .cache-notice {
+        font-size: 10px;
+        border-radius: 4px;
+        padding: 2px 6px;
+        margin-top: 2px;
+    }
+
+    .cache-notice.stale {
+        background: rgba(255, 200, 0, 0.2);
+        color: #ffe57a;
+    }
+
+    .cache-notice.error {
+        background: rgba(255, 80, 80, 0.2);
+        color: #ffa0a0;
+    }
 
 }

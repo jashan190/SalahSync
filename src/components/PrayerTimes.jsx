@@ -6,7 +6,59 @@ import "react-circular-progressbar/dist/styles.css";
 import { parseUcdScheduleInput } from "../parser/ucdScheduleParser";
 import { detectPrayerConflicts } from "../conflicts/prayerConflictEngine";
 
-// Exact coordinates of the Islamic Center of Davis (539 Russell Blvd)
+// ── Cache helpers ────────────────────────────────────────────────────────────
+const CACHE_KEY = "salahsync_prayer_cache";
+
+async function readCache() {
+  try {
+    if (globalThis.chrome?.storage?.local) {
+      return new Promise((resolve) =>
+        chrome.storage.local.get(CACHE_KEY, (r) => resolve(r[CACHE_KEY] ?? null))
+      );
+    }
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCache(timings) {
+  const entry = { date: new Date().toDateString(), timings };
+  try {
+    if (globalThis.chrome?.storage?.local) {
+      chrome.storage.local.set({ [CACHE_KEY]: entry });
+    } else {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+    }
+  } catch {
+    // storage failure is non-fatal
+  }
+}
+
+function isCacheForToday(entry) {
+  return entry?.date === new Date().toDateString() && !!entry?.timings;
+}
+
+// ── Fetch with exponential backoff ───────────────────────────────────────────
+async function fetchWithRetry(url, maxRetries = 3) {
+  let delay = 1000;
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < maxRetries) await new Promise((r) => setTimeout(r, delay));
+      delay *= 2;
+    }
+  }
+  throw lastErr;
+}
+
+// ── Exact coordinates of the Islamic Center of Davis (539 Russell Blvd) ──────
 const DAVIS_COORDS = {
   latitude: 38.5465,
   longitude: -121.7563,
@@ -45,6 +97,8 @@ export default function PrayerTimes() {
   const [countdown, setCountdown] = useState("");
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  // null = fresh data | "stale" = offline fallback | "error" = no data at all
+  const [cacheStatus, setCacheStatus] = useState(null);
   const [notifications, setNotifications] = useState({});
   const [scheduleInput, setScheduleInput] = useState("");
   const [classMeetings, setClassMeetings] = useState([]);
@@ -144,29 +198,49 @@ export default function PrayerTimes() {
     }
   };
 
+  const applyTimes = useCallback((times) => {
+    setPrayerTimes(times);
+    const curr = findCurrentPrayer(times);
+    const nxt = findNextPrayer(times);
+    setCurrentPrayer(curr);
+    setNextPrayer(nxt);
+    updateCountdown(nxt);
+  }, []);
+
   const fetchPrayerTimes = useCallback(async () => {
     setLoading(true);
+
+    // 1. Serve from cache if it's already today's data
+    const cached = await readCache();
+    if (isCacheForToday(cached)) {
+      applyTimes(cached.timings);
+      setCacheStatus(null);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Fetch fresh data with retry/backoff
     try {
-      const res = await fetch(
+      const json = await fetchWithRetry(
         `https://api.aladhan.com/v1/timings?latitude=${DAVIS_COORDS.latitude}&longitude=${DAVIS_COORDS.longitude}&method=2`
       );
-      if (!res.ok) throw new Error(String(res.status));
-
-      const { data } = await res.json();
-      const times = filterPrayerTimes(data.timings);
-      setPrayerTimes(times);
-
-      const curr = findCurrentPrayer(times);
-      const nxt = findNextPrayer(times);
-      setCurrentPrayer(curr);
-      setNextPrayer(nxt);
-      updateCountdown(nxt);
+      const times = filterPrayerTimes(json.data.timings);
+      await writeCache(times);
+      applyTimes(times);
+      setCacheStatus(null);
     } catch (e) {
-      console.error("fetchPrayerTimes:", e);
+      console.error("fetchPrayerTimes failed after retries:", e);
+      // 3. Fall back to stale cache rather than showing nothing
+      if (cached?.timings) {
+        applyTimes(cached.timings);
+        setCacheStatus("stale");
+      } else {
+        setCacheStatus("error");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyTimes]);
 
   // Use iqamah times (not athan) as conflict windows — students must arrive by iqamah
   const iqamahTimes = useMemo(() => computeIqamahTimes(prayerTimes), [prayerTimes]);
@@ -376,6 +450,12 @@ export default function PrayerTimes() {
           })}
         </div>
         <div className="santa-clara-ca">{DAVIS_COORDS.label}</div>
+        {cacheStatus === "stale" && (
+          <div className="cache-notice stale">Offline — showing cached times</div>
+        )}
+        {cacheStatus === "error" && (
+          <div className="cache-notice error">Could not load prayer times</div>
+        )}
       </div>
     </div>
   );

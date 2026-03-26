@@ -3,7 +3,7 @@
   "name": "SalahSync",
   "version": "1.0",
   "description": "Sync your day with the times of Salah.",
-  "permissions": ["notifications"],
+  "permissions": ["notifications", "storage"],
   "host_permissions": [
     "https://api.aladhan.com/*"
   ],
