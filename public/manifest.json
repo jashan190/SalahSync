@@ -5,7 +5,15 @@
   "description": "Sync your day with the times of Salah.",
   "permissions": ["notifications", "storage"],
   "host_permissions": [
-    "https://api.aladhan.com/*"
+    "https://api.aladhan.com/*",
+    "https://my.ucdavis.edu/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://my.ucdavis.edu/schedulebuilder/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
   ],
 
   "icons": {
