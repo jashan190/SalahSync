@@ -3,7 +3,7 @@
   "name": "SalahSync",
   "version": "1.0",
   "description": "Sync your day with the times of Salah.",
-  "permissions": ["notifications", "storage"],
+  "permissions": ["storage"],
   "host_permissions": [
     "https://api.aladhan.com/*",
     "https://my.ucdavis.edu/*"
@@ -15,11 +15,10 @@
       "run_at": "document_idle"
     }
   ],
-
   "icons": {
-    "16":"SalahSync 16x16.png",
-    "48":"SalahSync 48x48.png",
-    "128":"SalahSync 128x128.png"
+    "16": "SalahSync 16x16.png",
+    "48": "SalahSync 48x48.png",
+    "128": "SalahSync 128x128.png"
   },
   "action": {
     "default_icon": "SalahSync 48x48.png"
@@ -28,5 +27,3 @@
     "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }
-
-  

@@ -9,7 +9,7 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: false,
+    emptyOutDir: true,
     lib: {
       entry: resolve(__dirname, "src/content/content.jsx"),
       name: "SalahSyncContent",
