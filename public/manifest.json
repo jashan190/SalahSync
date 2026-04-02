@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SalahSync",
-  "version": "1.0",
-  "description": "Sync your day with the times of Salah.",
+  "version": "2.0",
+  "description": "A browser extension for UC Davis students to sync their classes with the times of Davis Masjid",
   "permissions": ["storage"],
   "host_permissions": [
     "https://api.aladhan.com/*",
