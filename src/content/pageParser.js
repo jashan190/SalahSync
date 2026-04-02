@@ -69,12 +69,20 @@ export function scanPageForClasses() {
     const blockText = courseEl.innerText || courseEl.textContent || "";
     const lines = blockText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
-    for (let i = 0; i + 1 < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const timeMatch = lines[i].match(TIME_RANGE_RE);
       if (!timeMatch) continue;
 
-      const dayLine = lines[i + 1].trim();
-      if (!DAY_LINE_RE.test(dayLine)) continue;
+      // Day codes may appear on the line before OR after the time range
+      // depending on how the Schedule Builder renders the block.
+      const prevLine = i > 0 ? lines[i - 1].trim() : "";
+      const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
+      const dayLine = DAY_LINE_RE.test(prevLine)
+        ? prevLine
+        : DAY_LINE_RE.test(nextLine)
+        ? nextLine
+        : null;
+      if (!dayLine) continue;
 
       const key = `${courseCode}-${dayLine}-${timeMatch[1]}`;
       if (seen.has(key)) continue;

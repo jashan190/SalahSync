@@ -37,6 +37,23 @@
 }
 
 
+/* ── Collapse toggle ─────────────────────────── */
+.ss-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6c3483;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.ss-toggle:hover { color: #4a235a; }
+
+.ss-collapsed { gap: 0; }
+
 /* ── Alerts ──────────────────────────────────── */
 .ss-alert {
   font-size: 12px;
@@ -91,6 +108,8 @@
 }
 
 .ss-days { color: #555; font-size: 12px; }
+
+.ss-worst-date { color: #888; font-style: italic; }
 
 .ss-conflict-detail {
   font-size: 11px;
